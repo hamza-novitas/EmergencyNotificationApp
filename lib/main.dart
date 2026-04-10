@@ -21,21 +21,6 @@ Future<void> main() async {
   PushHandler.initialize(alertManager);
 
   final apns = FlutterApnsOnly();
-  apns.onTokenRefresh.listen((token) {
-    // ignore: avoid_print
-    print('[APNs] Device token: $token');
-    // TODO: send token to your backend
-  });
-
-  apns.onMessage.listen((message) {
-    final dynamic payload = (message as dynamic).payload ?? message;
-    if (payload is Map<String, dynamic>) {
-      PushHandler.handle(payload, alertManager);
-    } else if (payload is Map) {
-      PushHandler.handle(payload.cast<String, dynamic>(), alertManager);
-    }
-  });
-
   await apns.requestNotificationPermissions(
     const IosNotificationSettings(
       sound: true,
@@ -44,6 +29,24 @@ Future<void> main() async {
       criticalAlert: true,
     ),
   );
+
+  FlutterBackgroundService().on('onAlert').listen((data) {
+    if (data is! Map) return;
+    final type = (data['type'] as String?)?.toUpperCase();
+    if (type == 'TEXT') {
+      final message = data['data'] as String?;
+      if (message != null) {
+        alertManager.handle(IncomingAlert(type: TextAlert(message)));
+      }
+    } else if (type == 'AUDIO') {
+      final base64 = data['data'] as String?;
+      if (base64 != null) {
+        alertManager.handle(
+          IncomingAlert(type: AudioAlert('background_audio.wav', base64)),
+        );
+      }
+    }
+  });
 
   runApp(
     MultiProvider(

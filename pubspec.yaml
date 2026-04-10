@@ -1,0 +1,30 @@
+name: emergency_poc
+description: Emergency alert proof of concept.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  signalr_netcore: ^1.3.4
+  flutter_apns_only: ^1.0.0
+  flutter_local_notifications: ^17.0.0
+  just_audio: ^0.9.0
+  permission_handler: ^11.0.0
+  provider: ^6.0.0
+  path_provider: ^2.0.0
+  flutter_background_service: ^5.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/audio/emergency_voice.caf
+    - assets/audio/emergency_voice.mp3

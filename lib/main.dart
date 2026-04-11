@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 
 import 'managers/alert_manager.dart';
 import 'managers/signalr_manager.dart';
+import 'services/app_lifecycle_service.dart';
+import 'services/local_notification_service.dart';
 import 'services/permission_service.dart';
 import 'ui/content_view.dart';
 
@@ -26,6 +28,8 @@ Future<void> main() async {
   };
 
   await PermissionService.requestPermissions();
+  await LocalNotificationService.initialize();
+  AppLifecycleService.instance.attach();
 
   runApp(
     MultiProvider(

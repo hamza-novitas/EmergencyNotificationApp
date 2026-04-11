@@ -6,6 +6,8 @@ import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../models/incoming_alert.dart';
+import '../services/app_lifecycle_service.dart';
+import '../services/local_notification_service.dart';
 
 class AlertManager extends ChangeNotifier {
   final List<IncomingAlert> alerts = <IncomingAlert>[];
@@ -20,6 +22,13 @@ class AlertManager extends ChangeNotifier {
       activeAlert = alert;
       notifyListeners();
       await _playBundledSound();
+
+      if (!AppLifecycleService.isForeground) {
+        await LocalNotificationService.showAlertNotification(
+          title: 'Emergency Alert',
+          body: alert.displayTitle,
+        );
+      }
 
       if (alert.type is AudioAlert) {
         final audioAlert = alert.type as AudioAlert;

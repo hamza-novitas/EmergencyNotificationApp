@@ -1,4 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+
+import 'device_auth_service.dart';
 
 class LocalNotificationService {
   LocalNotificationService._();
@@ -6,6 +9,8 @@ class LocalNotificationService {
   static final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
   static bool _initialized = false;
   static int _notificationId = 0;
+
+  static final ValueNotifier<int> notificationTapCount = ValueNotifier<int>(0);
 
   static Future<void> initialize() async {
     if (_initialized) {
@@ -17,7 +22,18 @@ class LocalNotificationService {
       android: AndroidInitializationSettings('@mipmap/ic_launcher'),
     );
 
-    await _plugin.initialize(settings);
+    await _plugin.initialize(
+      settings,
+      onDidReceiveNotificationResponse: (_) async {
+        final authenticated = await DeviceAuthService.authenticateIfAvailable(
+          reason: 'Use Face ID or passcode to open this emergency alert.',
+        );
+
+        if (authenticated) {
+          notificationTapCount.value += 1;
+        }
+      },
+    );
 
     await _plugin
         .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
@@ -37,6 +53,7 @@ class LocalNotificationService {
         presentBadge: true,
         presentSound: true,
         interruptionLevel: InterruptionLevel.timeSensitive,
+        subtitle: 'NOVITAS',
       ),
       android: AndroidNotificationDetails(
         'emergency_alerts_v2',

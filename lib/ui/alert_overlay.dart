@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../managers/alert_manager.dart';
 import '../models/incoming_alert.dart';
+import '../services/device_auth_service.dart';
+import 'widgets/novitas_logo.dart';
 
 enum _OverlayStep { incoming, audioActions, textAlert, declineReasons, confirmation }
 
@@ -22,14 +24,23 @@ class AlertOverlay extends StatefulWidget {
 class _AlertOverlayState extends State<AlertOverlay> {
   _OverlayStep _step = _OverlayStep.incoming;
 
+  Future<void> _moveWithAuth(_OverlayStep nextStep) async {
+    final authenticated = await DeviceAuthService.authenticateIfAvailable();
+    if (!mounted || !authenticated) {
+      return;
+    }
+    setState(() => _step = nextStep);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xF0070B1C), Color(0xF00C1124)],
+        gradient: RadialGradient(
+          center: Alignment.topCenter,
+          radius: 1.4,
+          colors: [Color(0xFF0D2F20), Color(0xFF03130B), Color(0xFF010B06)],
+          stops: [0.0, 0.7, 1.0],
         ),
       ),
       child: SafeArea(
@@ -52,12 +63,8 @@ class _AlertOverlayState extends State<AlertOverlay> {
       key: const ValueKey('incoming'),
       title: 'Emergency\nSystem',
       subtitle: 'Secure Emergency Response',
-      topBadge: 'INCOMING ALERT',
-      center: const CircleAvatar(
-        radius: 44,
-        backgroundColor: Color(0xFFE11D48),
-        child: Text('ES', style: TextStyle(color: Colors.white, fontSize: 34)),
-      ),
+      topBadge: null,
+      center: const _IncomingNotificationPreview(),
       panel: const _CriticalPanel(),
       bottom: Row(
         children: [
@@ -66,7 +73,7 @@ class _AlertOverlayState extends State<AlertOverlay> {
               icon: Icons.close,
               color: const Color(0xFFEF4444),
               label: 'NO',
-              onTap: () => setState(() => _step = _OverlayStep.declineReasons),
+              onTap: () => _moveWithAuth(_OverlayStep.declineReasons),
             ),
           ),
           const SizedBox(width: 20),
@@ -75,11 +82,9 @@ class _AlertOverlayState extends State<AlertOverlay> {
               icon: Icons.check,
               color: const Color(0xFF22C55E),
               label: 'YES',
-              onTap: () => setState(() {
-                _step = widget.alert.type is TextAlert
-                    ? _OverlayStep.textAlert
-                    : _OverlayStep.audioActions;
-              }),
+              onTap: () => _moveWithAuth(
+                widget.alert.type is TextAlert ? _OverlayStep.textAlert : _OverlayStep.audioActions,
+              ),
             ),
           ),
         ],
@@ -114,13 +119,13 @@ class _AlertOverlayState extends State<AlertOverlay> {
         ],
       ),
       panel: _ResponsePanel(
-        onAttend: () => setState(() => _step = _OverlayStep.confirmation),
-        onDecline: () => setState(() => _step = _OverlayStep.declineReasons),
+        onAttend: () => _moveWithAuth(_OverlayStep.confirmation),
+        onDecline: () => _moveWithAuth(_OverlayStep.declineReasons),
       ),
       bottom: _ActionButton(
         text: 'Confirm with Face ID',
         color: const Color(0xFF22C55E),
-        onTap: () => setState(() => _step = _OverlayStep.confirmation),
+        onTap: () => _moveWithAuth(_OverlayStep.confirmation),
       ),
     );
   }
@@ -141,13 +146,13 @@ class _AlertOverlayState extends State<AlertOverlay> {
         ),
       ),
       panel: _ResponsePanel(
-        onAttend: () => setState(() => _step = _OverlayStep.confirmation),
-        onDecline: () => setState(() => _step = _OverlayStep.declineReasons),
+        onAttend: () => _moveWithAuth(_OverlayStep.confirmation),
+        onDecline: () => _moveWithAuth(_OverlayStep.declineReasons),
       ),
       bottom: _ActionButton(
         text: 'Respond with Face ID',
         color: const Color(0xFF1E5EFF),
-        onTap: () => setState(() => _step = _OverlayStep.confirmation),
+        onTap: () => _moveWithAuth(_OverlayStep.confirmation),
       ),
     );
   }
@@ -176,7 +181,13 @@ class _AlertOverlayState extends State<AlertOverlay> {
       bottom: _ActionButton(
         text: 'Submit with Face ID',
         color: const Color(0xFFEF4444),
-        onTap: () => widget.alertManager.dismissActiveAlert(),
+        onTap: () async {
+          final authenticated = await DeviceAuthService.authenticateIfAvailable();
+          if (!authenticated) {
+            return;
+          }
+          widget.alertManager.dismissActiveAlert();
+        },
       ),
     );
   }
@@ -185,7 +196,7 @@ class _AlertOverlayState extends State<AlertOverlay> {
     return _Layout(
       key: const ValueKey('confirmation'),
       title: 'Response\nSubmitted',
-      subtitle: 'Authenticated via Face ID',
+      subtitle: 'Authenticated via Face ID or passcode',
       center: const CircleAvatar(
         radius: 44,
         backgroundColor: Color(0xFF22C55E),
@@ -198,7 +209,7 @@ class _AlertOverlayState extends State<AlertOverlay> {
             _kv('Alert ID', '#${widget.alert.id}'),
             _kv('Type', widget.alert.displayTitle),
             _kv('Response', 'I can attend'),
-            _kv('Auth', 'Face ID ✓'),
+            _kv('Auth', 'Validated ✓'),
             _kv('Time', TimeOfDay.now().format(context)),
           ],
         ),
@@ -221,6 +232,44 @@ class _AlertOverlayState extends State<AlertOverlay> {
         children: [
           Expanded(child: Text(key, style: const TextStyle(color: Color(0xFF94A3B8)))),
           Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+}
+
+class _IncomingNotificationPreview extends StatelessWidget {
+  const _IncomingNotificationPreview();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      decoration: BoxDecoration(
+        color: const Color(0xCC181A2B),
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: const Color(0x66515A72)),
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              NovitasLogo(size: 24),
+              SizedBox(width: 10),
+              Text('NOVITAS', style: TextStyle(color: Color(0xFF8A8F9F), fontWeight: FontWeight.w700, letterSpacing: 1.2)),
+              Spacer(),
+              Text('now', style: TextStyle(color: Color(0xFF727785))),
+            ],
+          ),
+          SizedBox(height: 10),
+          Text('Incoming Emergency Alert', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16)),
+          SizedBox(height: 2),
+          Text(
+            'Emergency System is calling\nyou. Tap to respond.',
+            style: TextStyle(color: Color(0xFF9EA3B3), height: 1.3, fontSize: 15),
+          ),
         ],
       ),
     );
@@ -253,20 +302,30 @@ class _Layout extends StatelessWidget {
         children: [
           if (topBadge != null)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               decoration: BoxDecoration(
-                color: const Color(0x33EF4444),
+                color: const Color(0x551F120E),
                 borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: const Color(0x66EF4444)),
+                border: Border.all(color: const Color(0x88C53E2C), width: 1.5),
               ),
-              child: Text(topBadge!, style: const TextStyle(color: Color(0xFFFDA4AF), fontWeight: FontWeight.bold)),
+              child: Text(
+                '• $topBadge',
+                style: const TextStyle(
+                  color: Color(0xFFFF6A67),
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.2,
+                  fontSize: 18,
+                ),
+              ),
             ),
           const SizedBox(height: 16),
-          Text(title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 40, height: 1.1)),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w400, fontSize: 46, height: 1.0),
+          ),
           const SizedBox(height: 8),
-          Text(subtitle, style: const TextStyle(color: Color(0xFF94A3B8))),
+          Text(subtitle, style: const TextStyle(color: Color(0xFF849090), fontSize: 17)),
           const SizedBox(height: 20),
           center,
           const SizedBox(height: 16),
@@ -285,7 +344,7 @@ class _CriticalPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const _GlassTile(
-      color: Color(0x66B91C1C),
+      color: Color(0x6648180E),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -294,12 +353,12 @@ class _CriticalPanel extends StatelessWidget {
               Expanded(
                 child: Text('Priority Level', style: TextStyle(color: Color(0xFFFDA4AF))),
               ),
-              Text('CRITICAL', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.w700)),
+              Text('CRITICAL', style: TextStyle(color: Color(0xFFFF3B30), fontWeight: FontWeight.w700)),
             ],
           ),
           SizedBox(height: 8),
           Text(
-            'Immediate response required. Authentication will be required after you accept.',
+            'Immediate response required.\nAuthentication will be required after you accept.',
             style: TextStyle(color: Color(0xFFFECACA), height: 1.4),
           ),
         ],
@@ -430,8 +489,8 @@ class _GlassTile extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: color,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0x334D5A84)),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: const Color(0x663F5A44)),
       ),
       child: child,
     );

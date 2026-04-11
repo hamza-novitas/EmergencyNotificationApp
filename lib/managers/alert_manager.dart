@@ -27,8 +27,8 @@ class AlertManager extends ChangeNotifier {
 
       if (!AppLifecycleService.isForeground) {
         await LocalNotificationService.showAlertNotification(
-          title: 'Emergency Alert',
-          body: alert.displayTitle,
+          title: 'Incoming Emergency Alert',
+          body: 'Emergency System is calling you. Tap to respond.',
         );
       }
 

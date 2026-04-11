@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -8,6 +10,21 @@ import 'ui/content_view.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    // ignore: avoid_print
+    print('[FlutterError] ${details.exceptionAsString()}');
+  };
+
+  PlatformDispatcher.instance.onError = (error, stackTrace) {
+    // ignore: avoid_print
+    print('[PlatformDispatcher] Unhandled exception: $error');
+    // ignore: avoid_print
+    print(stackTrace);
+    return true;
+  };
+
   await PermissionService.requestPermissions();
 
   runApp(

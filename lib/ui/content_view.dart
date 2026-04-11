@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../managers/alert_manager.dart';
 import '../managers/signalr_manager.dart';
 import '../models/incoming_alert.dart';
+import '../services/local_notification_service.dart';
+import 'widgets/novitas_logo.dart';
 import 'alert_overlay.dart';
 
 class ContentView extends StatefulWidget {
@@ -16,6 +18,13 @@ class ContentView extends StatefulWidget {
 class _ContentViewState extends State<ContentView> {
   int _selectedIndex = 0;
 
+  void _onNotificationTapped() {
+    if (!mounted) {
+      return;
+    }
+    setState(() => _selectedIndex = 0);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -24,9 +33,17 @@ class _ContentViewState extends State<ContentView> {
       final alertManager = context.read<AlertManager>();
       signalR.configure(alertManager: alertManager);
       signalR.connect();
+
+      LocalNotificationService.notificationTapCount.addListener(_onNotificationTapped);
     });
   }
 
+
+  @override
+  void dispose() {
+    LocalNotificationService.notificationTapCount.removeListener(_onNotificationTapped);
+    super.dispose();
+  }
   @override
   Widget build(BuildContext context) {
     return Consumer<AlertManager>(
@@ -93,8 +110,8 @@ class _HomeDashboardScreen extends StatelessWidget {
               child: ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: CircleAvatar(
-                  backgroundColor: Color(0xFF6038FF),
-                  child: Icon(Icons.sync, color: Colors.white),
+                  backgroundColor: Color(0x22161616),
+                  child: NovitasLogo(size: 24),
                 ),
                 title: Text('Good morning,\nAhmad Nour',
                     style: TextStyle(

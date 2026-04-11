@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -22,6 +23,7 @@ class AlertManager extends ChangeNotifier {
       activeAlert = alert;
       notifyListeners();
       await _playBundledSound();
+      await SystemSound.play(SystemSoundType.alert);
 
       if (!AppLifecycleService.isForeground) {
         await LocalNotificationService.showAlertNotification(
@@ -48,9 +50,7 @@ class AlertManager extends ChangeNotifier {
 
   Future<void> _playBundledSound() async {
     try {
-      final assetPath =
-          Platform.isIOS ? 'assets/audio/emergency_voice.caf' : 'assets/audio/emergency_voice.mp3';
-      await _audioPlayer.setAsset(assetPath);
+      await _audioPlayer.setAsset('assets/audio/emergency_voice.mp3');
       await _audioPlayer.setVolume(1.0);
       await _audioPlayer.play();
     } catch (e) {

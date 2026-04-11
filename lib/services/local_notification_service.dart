@@ -21,7 +21,7 @@ class LocalNotificationService {
 
     await _plugin
         .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
-        ?.requestPermissions(alert: true, badge: true, sound: true);
+        ?.requestPermissions(alert: true, badge: true, sound: true, critical: true);
 
     _initialized = true;
   }
@@ -32,13 +32,20 @@ class LocalNotificationService {
     }
 
     const details = NotificationDetails(
-      iOS: DarwinNotificationDetails(presentAlert: true, presentBadge: true, presentSound: true),
+      iOS: DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+        interruptionLevel: InterruptionLevel.timeSensitive,
+      ),
       android: AndroidNotificationDetails(
-        'emergency_alerts',
+        'emergency_alerts_v2',
         'Emergency Alerts',
         channelDescription: 'Emergency notifications when app is backgrounded',
         importance: Importance.max,
         priority: Priority.high,
+        playSound: true,
+        enableVibration: true,
       ),
     );
 

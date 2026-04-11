@@ -8,12 +8,8 @@
       "version": "1.0.0+1",
       "dependencies": [
         "flutter",
-        "flutter_apns_only",
-        "flutter_background_service",
-        "flutter_local_notifications",
         "just_audio",
         "path_provider",
-        "permission_handler",
         "provider",
         "signalr_netcore"
       ],
@@ -48,16 +44,6 @@
       ]
     },
     {
-      "name": "flutter_background_service",
-      "version": "5.1.0",
-      "dependencies": [
-        "flutter",
-        "flutter_background_service_android",
-        "flutter_background_service_ios",
-        "flutter_background_service_platform_interface"
-      ]
-    },
-    {
       "name": "path_provider",
       "version": "2.1.5",
       "dependencies": [
@@ -79,19 +65,6 @@
       ]
     },
     {
-      "name": "permission_handler",
-      "version": "11.4.0",
-      "dependencies": [
-        "flutter",
-        "meta",
-        "permission_handler_android",
-        "permission_handler_apple",
-        "permission_handler_html",
-        "permission_handler_platform_interface",
-        "permission_handler_windows"
-      ]
-    },
-    {
       "name": "just_audio",
       "version": "0.9.46",
       "dependencies": [
@@ -106,24 +79,6 @@
         "path_provider",
         "rxdart",
         "uuid"
-      ]
-    },
-    {
-      "name": "flutter_local_notifications",
-      "version": "17.2.4",
-      "dependencies": [
-        "clock",
-        "flutter",
-        "flutter_local_notifications_linux",
-        "flutter_local_notifications_platform_interface",
-        "timezone"
-      ]
-    },
-    {
-      "name": "flutter_apns_only",
-      "version": "1.6.0",
-      "dependencies": [
-        "flutter"
       ]
     },
     {
@@ -165,7 +120,7 @@
     },
     {
       "name": "meta",
-      "version": "1.17.0",
+      "version": "1.18.0",
       "dependencies": []
     },
     {
@@ -227,7 +182,7 @@
     },
     {
       "name": "test_api",
-      "version": "0.7.10",
+      "version": "0.7.11",
       "dependencies": [
         "async",
         "boolean_selector",
@@ -238,31 +193,6 @@
         "stream_channel",
         "string_scanner",
         "term_glyph"
-      ]
-    },
-    {
-      "name": "flutter_background_service_ios",
-      "version": "5.0.3",
-      "dependencies": [
-        "flutter",
-        "flutter_background_service_platform_interface"
-      ]
-    },
-    {
-      "name": "flutter_background_service_android",
-      "version": "6.3.1",
-      "dependencies": [
-        "flutter",
-        "flutter_background_service_platform_interface"
-      ]
-    },
-    {
-      "name": "flutter_background_service_platform_interface",
-      "version": "5.1.2",
-      "dependencies": [
-        "flutter",
-        "platform",
-        "plugin_platform_interface"
       ]
     },
     {
@@ -323,49 +253,6 @@
       ]
     },
     {
-      "name": "permission_handler_platform_interface",
-      "version": "4.3.0",
-      "dependencies": [
-        "flutter",
-        "meta",
-        "plugin_platform_interface"
-      ]
-    },
-    {
-      "name": "permission_handler_windows",
-      "version": "0.2.1",
-      "dependencies": [
-        "flutter",
-        "permission_handler_platform_interface"
-      ]
-    },
-    {
-      "name": "permission_handler_html",
-      "version": "0.1.3+5",
-      "dependencies": [
-        "flutter",
-        "flutter_web_plugins",
-        "permission_handler_platform_interface",
-        "web"
-      ]
-    },
-    {
-      "name": "permission_handler_apple",
-      "version": "9.4.7",
-      "dependencies": [
-        "flutter",
-        "permission_handler_platform_interface"
-      ]
-    },
-    {
-      "name": "permission_handler_android",
-      "version": "12.1.0",
-      "dependencies": [
-        "flutter",
-        "permission_handler_platform_interface"
-      ]
-    },
-    {
       "name": "crypto",
       "version": "3.0.7",
       "dependencies": [
@@ -420,33 +307,6 @@
       "dependencies": [
         "flutter",
         "plugin_platform_interface"
-      ]
-    },
-    {
-      "name": "timezone",
-      "version": "0.9.4",
-      "dependencies": [
-        "path"
-      ]
-    },
-    {
-      "name": "flutter_local_notifications_platform_interface",
-      "version": "7.2.0",
-      "dependencies": [
-        "flutter",
-        "plugin_platform_interface"
-      ]
-    },
-    {
-      "name": "flutter_local_notifications_linux",
-      "version": "4.0.1",
-      "dependencies": [
-        "dbus",
-        "ffi",
-        "flutter",
-        "flutter_local_notifications_platform_interface",
-        "path",
-        "xdg_directories"
       ]
     },
     {
@@ -564,6 +424,11 @@
       ]
     },
     {
+      "name": "ffi",
+      "version": "2.2.0",
+      "dependencies": []
+    },
+    {
       "name": "plugin_platform_interface",
       "version": "2.1.8",
       "dependencies": [
@@ -573,11 +438,6 @@
     {
       "name": "platform",
       "version": "3.1.6",
-      "dependencies": []
-    },
-    {
-      "name": "ffi",
-      "version": "2.2.0",
       "dependencies": []
     },
     {
@@ -623,18 +483,6 @@
       ]
     },
     {
-      "name": "web",
-      "version": "1.1.1",
-      "dependencies": []
-    },
-    {
-      "name": "flutter_web_plugins",
-      "version": "0.0.0",
-      "dependencies": [
-        "flutter"
-      ]
-    },
-    {
       "name": "typed_data",
       "version": "1.4.0",
       "dependencies": [
@@ -647,19 +495,21 @@
       "dependencies": []
     },
     {
+      "name": "flutter_web_plugins",
+      "version": "0.0.0",
+      "dependencies": [
+        "flutter"
+      ]
+    },
+    {
       "name": "synchronized",
       "version": "3.4.0",
       "dependencies": []
     },
     {
-      "name": "dbus",
-      "version": "0.7.12",
-      "dependencies": [
-        "args",
-        "ffi",
-        "meta",
-        "xml"
-      ]
+      "name": "web",
+      "version": "1.1.1",
+      "dependencies": []
     },
     {
       "name": "http_parser",
@@ -756,15 +606,6 @@
       "dependencies": []
     },
     {
-      "name": "xml",
-      "version": "6.6.1",
-      "dependencies": [
-        "collection",
-        "meta",
-        "petitparser"
-      ]
-    },
-    {
       "name": "shelf",
       "version": "1.4.2",
       "dependencies": [
@@ -794,14 +635,6 @@
         "collection",
         "source_span",
         "string_scanner"
-      ]
-    },
-    {
-      "name": "petitparser",
-      "version": "7.0.2",
-      "dependencies": [
-        "collection",
-        "meta"
       ]
     },
     {

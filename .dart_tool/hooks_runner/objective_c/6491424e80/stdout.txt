@@ -1,0 +1,55 @@
+Running `(cd /Users/hamza/.pub-cache/hosted/pub.dev/objective_c-9.3.0/; TMPDIR=/var/folders/pb/d10sgv713gz6883kx6zz_hqc0000gn/T/ PATH=/Applications/Xcode.app/Contents/SharedFrameworks/SwiftBuild.framework/Versions/A/PlugIns/SWBBuildService.bundle/Contents/PlugIns/SWBUniversalPlatformPlugin.bundle/Contents/Frameworks/SWBUniversalPlatform.framework/Resources:/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin:/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/local/bin:/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/libexec:/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/usr/bin:/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/usr/local/bin:/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/bin:/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/local/bin:/Applications/Xcode.app/Contents/Developer/usr/bin:/Applications/Xcode.app/Contents/Developer/usr/local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin HOME=/Users/hamza /opt/homebrew/share/flutter/bin/cache/dart-sdk/bin/dart --packages=/Users/hamza/Desktop/Repos/EmergencyNotificationApp/.dart_tool/package_config.json /Users/hamza/Desktop/Repos/EmergencyNotificationApp/.dart_tool/hooks_runner/objective_c/6491424e80/hook.dill --config=/Users/hamza/Desktop/Repos/EmergencyNotificationApp/.dart_tool/hooks_runner/objective_c/6491424e80/input.json )`.
+INFO: 2026-04-11 11:07:38.801127: Running `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang --version`.
+
+INFO: 2026-04-11 11:07:38.819924: Running `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang --version`.
+
+INFO: 2026-04-11 11:07:38.835066: Running: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.1.sdk -target x86_64-apple-ios-simulator -mios-version-min=13 -c /Users/hamza/.pub-cache/hosted/pub.dev/objective_c-9.3.0/src/include/dart_api_dl.c -fpic -I src -o /Users/hamza/Desktop/Repos/EmergencyNotificationApp/.dart_tool/hooks_runner/shared/objective_c/build/6491424e80/obj/src/include/dart_api_dl.c.o
+
+INFO: 2026-04-11 11:07:38.835519: Running: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.1.sdk -target x86_64-apple-ios-simulator -mios-version-min=13 -c /Users/hamza/.pub-cache/hosted/pub.dev/objective_c-9.3.0/src/objective_c.c -fpic -I src -o /Users/hamza/Desktop/Repos/EmergencyNotificationApp/.dart_tool/hooks_runner/shared/objective_c/build/6491424e80/obj/src/objective_c.c.o
+
+INFO: 2026-04-11 11:07:38.835733: Running: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.1.sdk -target x86_64-apple-ios-simulator -mios-version-min=13 -x objective-c -fobjc-arc -c /Users/hamza/.pub-cache/hosted/pub.dev/objective_c-9.3.0/src/input_stream_adapter.m -fpic -I src -o /Users/hamza/Desktop/Repos/EmergencyNotificationApp/.dart_tool/hooks_runner/shared/objective_c/build/6491424e80/obj/src/input_stream_adapter.m.o
+
+INFO: 2026-04-11 11:07:38.836021: Running: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.1.sdk -target x86_64-apple-ios-simulator -mios-version-min=13 -x objective-c -fobjc-arc -c /Users/hamza/.pub-cache/hosted/pub.dev/objective_c-9.3.0/src/objective_c.m -fpic -I src -o /Users/hamza/Desktop/Repos/EmergencyNotificationApp/.dart_tool/hooks_runner/shared/objective_c/build/6491424e80/obj/src/objective_c.m.o
+
+INFO: 2026-04-11 11:07:38.836154: Running: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.1.sdk -target x86_64-apple-ios-simulator -mios-version-min=13 -x objective-c -fobjc-arc -c /Users/hamza/.pub-cache/hosted/pub.dev/objective_c-9.3.0/src/observer.m -fpic -I src -o /Users/hamza/Desktop/Repos/EmergencyNotificationApp/.dart_tool/hooks_runner/shared/objective_c/build/6491424e80/obj/src/observer.m.o
+
+INFO: 2026-04-11 11:07:38.836265: Running: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.1.sdk -target x86_64-apple-ios-simulator -mios-version-min=13 -x objective-c -fobjc-arc -c /Users/hamza/.pub-cache/hosted/pub.dev/objective_c-9.3.0/src/ns_number.m -fpic -I src -o /Users/hamza/Desktop/Repos/EmergencyNotificationApp/.dart_tool/hooks_runner/shared/objective_c/build/6491424e80/obj/src/ns_number.m.o
+
+INFO: 2026-04-11 11:07:38.836422: Running: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.1.sdk -target x86_64-apple-ios-simulator -mios-version-min=13 -x objective-c -fobjc-arc -c /Users/hamza/.pub-cache/hosted/pub.dev/objective_c-9.3.0/src/protocol.m -fpic -I src -o /Users/hamza/Desktop/Repos/EmergencyNotificationApp/.dart_tool/hooks_runner/shared/objective_c/build/6491424e80/obj/src/protocol.m.o
+
+INFO: 2026-04-11 11:07:38.836640: Running: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.1.sdk -target x86_64-apple-ios-simulator -mios-version-min=13 -x objective-c -fobjc-arc -c /Users/hamza/.pub-cache/hosted/pub.dev/objective_c-9.3.0/src/objective_c_bindings_generated.m -fpic -I src -o /Users/hamza/Desktop/Repos/EmergencyNotificationApp/.dart_tool/hooks_runner/shared/objective_c/build/6491424e80/obj/src/objective_c_bindings_generated.m.o
+
+INFO: 2026-04-11 11:07:38.907936: 
+INFO: 2026-04-11 11:07:38.908041: 
+INFO: 2026-04-11 11:07:38.908071: Generated /Users/hamza/Desktop/Repos/EmergencyNotificationApp/.dart_tool/hooks_runner/shared/objective_c/build/6491424e80/obj/src/include/dart_api_dl.c.o
+
+INFO: 2026-04-11 11:07:38.917391: 
+INFO: 2026-04-11 11:07:38.917429: 
+INFO: 2026-04-11 11:07:38.917441: Generated /Users/hamza/Desktop/Repos/EmergencyNotificationApp/.dart_tool/hooks_runner/shared/objective_c/build/6491424e80/obj/src/objective_c.c.o
+
+INFO: 2026-04-11 11:07:38.948515: 
+INFO: 2026-04-11 11:07:38.948555: 
+INFO: 2026-04-11 11:07:38.948566: Generated /Users/hamza/Desktop/Repos/EmergencyNotificationApp/.dart_tool/hooks_runner/shared/objective_c/build/6491424e80/obj/src/observer.m.o
+
+INFO: 2026-04-11 11:07:38.953231: 
+INFO: 2026-04-11 11:07:38.953302: 
+INFO: 2026-04-11 11:07:38.953331: Generated /Users/hamza/Desktop/Repos/EmergencyNotificationApp/.dart_tool/hooks_runner/shared/objective_c/build/6491424e80/obj/src/protocol.m.o
+
+INFO: 2026-04-11 11:07:39.082468: 
+INFO: 2026-04-11 11:07:39.082528: 
+INFO: 2026-04-11 11:07:39.082541: Generated /Users/hamza/Desktop/Repos/EmergencyNotificationApp/.dart_tool/hooks_runner/shared/objective_c/build/6491424e80/obj/src/objective_c.m.o
+INFO: 2026-04-11 11:07:39.088519: 
+INFO: 2026-04-11 11:07:39.088562: 
+INFO: 2026-04-11 11:07:39.088573: Generated /Users/hamza/Desktop/Repos/EmergencyNotificationApp/.dart_tool/hooks_runner/shared/objective_c/build/6491424e80/obj/src/input_stream_adapter.m.o
+INFO: 2026-04-11 11:07:39.097965: 
+INFO: 2026-04-11 11:07:39.098018: 
+INFO: 2026-04-11 11:07:39.098057: Generated /Users/hamza/Desktop/Repos/EmergencyNotificationApp/.dart_tool/hooks_runner/shared/objective_c/build/6491424e80/obj/src/ns_number.m.o
+INFO: 2026-04-11 11:07:39.121004: 
+INFO: 2026-04-11 11:07:39.121058: 
+INFO: 2026-04-11 11:07:39.121072: Generated /Users/hamza/Desktop/Repos/EmergencyNotificationApp/.dart_tool/hooks_runner/shared/objective_c/build/6491424e80/obj/src/objective_c_bindings_generated.m.o
+INFO: 2026-04-11 11:07:39.121491: Running: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -shared -Wl,-encryptable -undefined dynamic_lookup -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.1.sdk -target x86_64-apple-ios-simulator -mios-version-min=13 /Users/hamza/Desktop/Repos/EmergencyNotificationApp/.dart_tool/hooks_runner/shared/objective_c/build/6491424e80/obj/src/include/dart_api_dl.c.o /Users/hamza/Desktop/Repos/EmergencyNotificationApp/.dart_tool/hooks_runner/shared/objective_c/build/6491424e80/obj/src/objective_c.c.o /Users/hamza/Desktop/Repos/EmergencyNotificationApp/.dart_tool/hooks_runner/shared/objective_c/build/6491424e80/obj/src/input_stream_adapter.m.o /Users/hamza/Desktop/Repos/EmergencyNotificationApp/.dart_tool/hooks_runner/shared/objective_c/build/6491424e80/obj/src/objective_c.m.o /Users/hamza/Desktop/Repos/EmergencyNotificationApp/.dart_tool/hooks_runner/shared/objective_c/build/6491424e80/obj/src/observer.m.o /Users/hamza/Desktop/Repos/EmergencyNotificationApp/.dart_tool/hooks_runner/shared/objective_c/build/6491424e80/obj/src/ns_number.m.o /Users/hamza/Desktop/Repos/EmergencyNotificationApp/.dart_tool/hooks_runner/shared/objective_c/build/6491424e80/obj/src/protocol.m.o /Users/hamza/Desktop/Repos/EmergencyNotificationApp/.dart_tool/hooks_runner/shared/objective_c/build/6491424e80/obj/src/objective_c_bindings_generated.m.o -o /Users/hamza/Desktop/Repos/EmergencyNotificationApp/.dart_tool/hooks_runner/shared/objective_c/build/6491424e80/objective_c.dylib
+INFO: 2026-04-11 11:07:39.153026: 
+INFO: 2026-04-11 11:07:39.153083: ld: warning: -undefined dynamic_lookup is deprecated on iOS-simulator
+
+INFO: 2026-04-11 11:07:39.153098: Generated /Users/hamza/Desktop/Repos/EmergencyNotificationApp/.dart_tool/hooks_runner/shared/objective_c/build/6491424e80/objective_c.dylib
+

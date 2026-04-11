@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:signalr_netcore/hub_connection.dart';
 import 'package:signalr_netcore/hub_connection_builder.dart';
@@ -11,6 +13,8 @@ const String kHubUrl = '$kServerUrl/alertHub';
 class SignalRManager extends ChangeNotifier {
   HubConnection? _connection;
   AlertManager? _alertManager;
+  Timer? _reconnectTimer;
+  bool _isConnecting = false;
 
   bool isConnected = false;
   String statusText = 'Disconnected';
@@ -22,6 +26,12 @@ class SignalRManager extends ChangeNotifier {
   }
 
   Future<void> connect() async {
+    if (_isConnecting || isConnected) {
+      return;
+    }
+    _isConnecting = true;
+    _reconnectTimer?.cancel();
+
     _connection = HubConnectionBuilder().withUrl(kHubUrl).withAutomaticReconnect().build();
 
     _registerHandlers();
@@ -42,7 +52,9 @@ class SignalRManager extends ChangeNotifier {
       print('[SignalR] Connection failed: $e');
       // ignore: avoid_print
       print(st);
+      _scheduleReconnect();
     }
+    _isConnecting = false;
     notifyListeners();
   }
 
@@ -110,6 +122,9 @@ class SignalRManager extends ChangeNotifier {
   }
 
   Future<void> disconnect() async {
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+
     try {
       await _connection?.stop();
     } catch (e) {
@@ -119,5 +134,12 @@ class SignalRManager extends ChangeNotifier {
     isConnected = false;
     statusText = 'Disconnected';
     notifyListeners();
+  }
+
+  void _scheduleReconnect() {
+    _reconnectTimer?.cancel();
+    _reconnectTimer = Timer(const Duration(seconds: 5), () {
+      connect();
+    });
   }
 }

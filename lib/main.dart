@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -8,17 +10,31 @@ import 'ui/content_view.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await PermissionService.requestPermissions();
 
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => AlertManager()),
-        ChangeNotifierProvider(create: (_) => SignalRManager()),
-      ],
-      child: const EmergencyApp(),
-    ),
-  );
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    // ignore: avoid_print
+    print('[FlutterError] ${details.exceptionAsString()}');
+  };
+
+  await runZonedGuarded(() async {
+    await PermissionService.requestPermissions();
+
+    runApp(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => AlertManager()),
+          ChangeNotifierProvider(create: (_) => SignalRManager()),
+        ],
+        child: const EmergencyApp(),
+      ),
+    );
+  }, (error, stackTrace) {
+    // ignore: avoid_print
+    print('[Zone] Unhandled exception: $error');
+    // ignore: avoid_print
+    print(stackTrace);
+  });
 }
 
 class EmergencyApp extends StatelessWidget {

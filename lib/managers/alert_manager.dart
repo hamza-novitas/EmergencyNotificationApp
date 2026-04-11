@@ -15,32 +15,37 @@ class AlertManager extends ChangeNotifier {
   final List<String> _tempFilePaths = <String>[];
 
   Future<void> handle(IncomingAlert alert) async {
-    alerts.insert(0, alert);
-    activeAlert = alert;
-    notifyListeners();
-    await _playBundledSound();
+    try {
+      alerts.insert(0, alert);
+      activeAlert = alert;
+      notifyListeners();
+      await _playBundledSound();
 
-    if (alert.type is AudioAlert) {
-      final audioAlert = alert.type as AudioAlert;
-      final bytes = base64Decode(audioAlert.base64Data);
-      final tempDir = await getTemporaryDirectory();
-      final filePath =
-          '${tempDir.path}/${DateTime.now().millisecondsSinceEpoch}_${audioAlert.fileName}';
-      final file = File(filePath);
-      await file.writeAsBytes(bytes, flush: true);
-      _tempFilePaths.add(filePath);
+      if (alert.type is AudioAlert) {
+        final audioAlert = alert.type as AudioAlert;
+        final bytes = base64Decode(audioAlert.base64Data);
+        final tempDir = await getTemporaryDirectory();
+        final filePath =
+            '${tempDir.path}/${DateTime.now().millisecondsSinceEpoch}_${audioAlert.fileName}';
+        final file = File(filePath);
+        await file.writeAsBytes(bytes, flush: true);
+        _tempFilePaths.add(filePath);
+      }
+    } catch (e) {
+      // ignore: avoid_print
+      print('[AlertManager] Failed to process alert: $e');
     }
   }
 
   Future<void> _playBundledSound() async {
     try {
-      final assetPath = Platform.isIOS
-          ? 'assets/audio/emergency_voice.caf'
-          : 'assets/audio/emergency_voice.mp3';
+      final assetPath =
+          Platform.isIOS ? 'assets/audio/emergency_voice.caf' : 'assets/audio/emergency_voice.mp3';
       await _audioPlayer.setAsset(assetPath);
       await _audioPlayer.setVolume(1.0);
       await _audioPlayer.play();
     } catch (e) {
+      // ignore: avoid_print
       print('[AlertManager] Audio playback failed: $e');
     }
   }

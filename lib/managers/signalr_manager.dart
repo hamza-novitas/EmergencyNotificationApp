@@ -22,10 +22,7 @@ class SignalRManager extends ChangeNotifier {
   }
 
   Future<void> connect() async {
-    _connection = HubConnectionBuilder()
-        .withUrl(kHubUrl)
-        .withAutomaticReconnect()
-        .build();
+    _connection = HubConnectionBuilder().withUrl(kHubUrl).withAutomaticReconnect().build();
 
     _registerHandlers();
 
@@ -38,36 +35,87 @@ class SignalRManager extends ChangeNotifier {
       statusText = 'Connected';
       // ignore: avoid_print
       print('[SignalR] Connected');
-    } catch (e) {
+    } catch (e, st) {
       isConnected = false;
       statusText = 'Disconnected';
       // ignore: avoid_print
       print('[SignalR] Connection failed: $e');
+      // ignore: avoid_print
+      print(st);
     }
     notifyListeners();
   }
 
   void _registerHandlers() {
     _connection!.on('ReceiveAlert', (arguments) {
-      final payload = arguments![0] as Map<String, dynamic>;
-      final message = payload['message'] as String;
-      final alert = IncomingAlert(type: TextAlert(message));
-      _alertManager?.handle(alert);
-      onAlert?.call(alert);
+      try {
+        final payload = _parsePayload(arguments);
+        if (payload == null) {
+          return;
+        }
+
+        final message = payload['message']?.toString();
+        if (message == null || message.trim().isEmpty) {
+          return;
+        }
+
+        final alert = IncomingAlert(type: TextAlert(message));
+        _alertManager?.handle(alert);
+        onAlert?.call(alert);
+      } catch (e, st) {
+        // ignore: avoid_print
+        print('[SignalR] ReceiveAlert parsing failed: $e');
+        // ignore: avoid_print
+        print(st);
+      }
     });
 
     _connection!.on('ReceiveAudio', (arguments) {
-      final payload = arguments![0] as Map<String, dynamic>;
-      final fileName = payload['fileName'] as String;
-      final base64 = payload['data'] as String;
-      final alert = IncomingAlert(type: AudioAlert(fileName, base64));
-      _alertManager?.handle(alert);
-      onAlert?.call(alert);
+      try {
+        final payload = _parsePayload(arguments);
+        if (payload == null) {
+          return;
+        }
+
+        final fileName = payload['fileName']?.toString();
+        final base64 = payload['data']?.toString();
+
+        if (fileName == null || fileName.trim().isEmpty || base64 == null || base64.trim().isEmpty) {
+          return;
+        }
+
+        final alert = IncomingAlert(type: AudioAlert(fileName, base64));
+        _alertManager?.handle(alert);
+        onAlert?.call(alert);
+      } catch (e, st) {
+        // ignore: avoid_print
+        print('[SignalR] ReceiveAudio parsing failed: $e');
+        // ignore: avoid_print
+        print(st);
+      }
     });
   }
 
-  void disconnect() {
-    _connection?.stop();
+  Map<String, dynamic>? _parsePayload(List<Object?>? arguments) {
+    if (arguments == null || arguments.isEmpty || arguments.first == null) {
+      return null;
+    }
+
+    final raw = arguments.first;
+    if (raw is Map) {
+      return raw.map((key, value) => MapEntry(key.toString(), value));
+    }
+
+    return null;
+  }
+
+  Future<void> disconnect() async {
+    try {
+      await _connection?.stop();
+    } catch (e) {
+      // ignore: avoid_print
+      print('[SignalR] Disconnect failed: $e');
+    }
     isConnected = false;
     statusText = 'Disconnected';
     notifyListeners();

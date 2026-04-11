@@ -1,6 +1,0 @@
-framework module flutter_apns_only {
-  umbrella header "flutter_apns_only-umbrella.h"
-
-  export *
-  module * { export * }
-}

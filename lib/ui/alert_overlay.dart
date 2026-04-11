@@ -197,8 +197,8 @@ class _AlertOverlayState extends State<AlertOverlay> {
           children: [
             _kv('Alert ID', '#${widget.alert.id}'),
             _kv('Type', widget.alert.displayTitle),
-            const _kv('Response', 'I can attend'),
-            const _kv('Auth', 'Face ID ✓'),
+            _kv('Response', 'I can attend'),
+            _kv('Auth', 'Face ID ✓'),
             _kv('Time', TimeOfDay.now().format(context)),
           ],
         ),

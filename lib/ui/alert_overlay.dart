@@ -143,72 +143,93 @@ class _AlertOverlayState extends State<AlertOverlay>
   // INCOMING CALL SCREEN  (pixel-perfect match to the design)
   // ════════════════════════════════════════════════════════════════════════════
   Widget _incomingScreen() {
-    return Padding(
+    return LayoutBuilder(
       key: const ValueKey('incoming'),
-      padding: const EdgeInsets.fromLTRB(20, 56, 20, 30),
-      child: Column(
-        children: [
-          // ── INCOMING ALERT badge ───────────────────────────────────────────
-          _IncomingBadge(secondsLeft: _secondsLeft),
+      builder: (context, constraints) {
+        final compact = constraints.maxHeight < 820;
+        final titleSize = compact ? 46.0 : 58.0;
+        final subtitleSize = compact ? 16.0 : 18.0;
+        final avatarSize = compact ? 190.0 : 232.0;
+        final buttonSize = compact ? 108.0 : 126.0;
+        final buttonIconSize = compact ? 46.0 : 52.0;
+        final horizontalPadding = compact ? 16.0 : 20.0;
 
-          const SizedBox(height: 44),
+        return SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(horizontalPadding, 36, horizontalPadding, 24),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight - 60),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // ── INCOMING ALERT badge ─────────────────────────────────────
+                const _IncomingBadge(),
 
-          // ── Pulsing rings + ES avatar ──────────────────────────────────────
-          _PulsingAvatar(animation: _pulseAnim),
+                SizedBox(height: compact ? 24 : 44),
 
-          const SizedBox(height: 32),
+                // ── Pulsing rings + ES avatar ────────────────────────────────
+                _PulsingAvatar(animation: _pulseAnim, size: avatarSize),
 
-          // ── Title ─────────────────────────────────────────────────────────
-          const Text(
-            'Emergency\nSystem',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 58,
-              fontWeight: FontWeight.w400,
-              height: 1.06,
+                SizedBox(height: compact ? 20 : 32),
+
+                // ── Title ─────────────────────────────────────────────────────
+                Text(
+                  'Emergency\nSystem',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: titleSize,
+                    fontWeight: FontWeight.w400,
+                    height: 1.06,
+                  ),
+                ),
+
+                SizedBox(height: compact ? 6 : 10),
+
+                // ── Subtitle ──────────────────────────────────────────────────
+                Text(
+                  'Secure Emergency Response',
+                  style: TextStyle(color: const Color(0xFF6A7775), fontSize: subtitleSize),
+                  textAlign: TextAlign.center,
+                ),
+
+                SizedBox(height: compact ? 18 : 34),
+
+                // ── Critical panel ────────────────────────────────────────────
+                const _CriticalPanel(),
+
+                SizedBox(height: compact ? 20 : 34),
+
+                // ── NO / YES buttons ──────────────────────────────────────────
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _CallButton(
+                      icon: Icons.close,
+                      color: const Color(0xFFEF4444),
+                      label: 'NO',
+                      size: buttonSize,
+                      iconSize: buttonIconSize,
+                      onTap: () => _goTo(_OverlayStep.declineReasons),
+                    ),
+                    _CallButton(
+                      icon: Icons.check,
+                      color: const Color(0xFF22C55E),
+                      label: 'YES',
+                      size: buttonSize,
+                      iconSize: buttonIconSize,
+                      onTap: () => _goTo(
+                        widget.alert.type is TextAlert
+                            ? _OverlayStep.textAlert
+                            : _OverlayStep.audioActions,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-
-          const SizedBox(height: 10),
-
-          // ── Subtitle ──────────────────────────────────────────────────────
-          const Text(
-            'Secure Emergency Response',
-            style: TextStyle(color: Color(0xFF6A7775), fontSize: 18),
-          ),
-
-          const Spacer(),
-
-          // ── Critical panel ────────────────────────────────────────────────
-          const _CriticalPanel(),
-
-          const SizedBox(height: 34),
-
-          // ── NO / YES buttons ──────────────────────────────────────────────
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _CallButton(
-                icon: Icons.close,
-                color: const Color(0xFFEF4444),
-                label: 'NO',
-                onTap: () => _goTo(_OverlayStep.declineReasons),
-              ),
-              _CallButton(
-                icon: Icons.check,
-                color: const Color(0xFF22C55E),
-                label: 'YES',
-                onTap: () => _goTo(
-                  widget.alert.type is TextAlert
-                      ? _OverlayStep.textAlert
-                      : _OverlayStep.audioActions,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -367,8 +388,7 @@ class _AlertOverlayState extends State<AlertOverlay>
 // INCOMING ALERT BADGE  (• INCOMING ALERT  |  15s countdown)
 // ══════════════════════════════════════════════════════════════════════════════
 class _IncomingBadge extends StatelessWidget {
-  const _IncomingBadge({required this.secondsLeft});
-  final int secondsLeft;
+  const _IncomingBadge();
 
   @override
   Widget build(BuildContext context) {
@@ -400,10 +420,6 @@ class _IncomingBadge extends StatelessWidget {
               fontSize: 36 / 2,
             ),
           ),
-          Offstage(
-            offstage: true,
-            child: Text('$secondsLeft'),
-          ),
         ],
       ),
     );
@@ -414,8 +430,9 @@ class _IncomingBadge extends StatelessWidget {
 // PULSING AVATAR  — animated concentric rings + ES avatar
 // ══════════════════════════════════════════════════════════════════════════════
 class _PulsingAvatar extends StatelessWidget {
-  const _PulsingAvatar({required this.animation});
+  const _PulsingAvatar({required this.animation, required this.size});
   final Animation<double> animation;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
@@ -423,34 +440,34 @@ class _PulsingAvatar extends StatelessWidget {
       animation: animation,
       builder: (context, _) {
         return SizedBox(
-          width: 232,
-          height: 232,
+          width: size,
+          height: size,
           child: Stack(
             alignment: Alignment.center,
             children: [
-              _ring(offset: 0.0, baseSize: 220),
-              _ring(offset: 0.33, baseSize: 188),
-              _ring(offset: 0.66, baseSize: 158),
+              _ring(offset: 0.0, baseSize: size * 0.95),
+              _ring(offset: 0.33, baseSize: size * 0.81),
+              _ring(offset: 0.66, baseSize: size * 0.68),
               Container(
-                width: 134,
-                height: 134,
+                width: size * 0.58,
+                height: size * 0.58,
                 decoration: BoxDecoration(
                   color: const Color(0xFFDF0018),
                   shape: BoxShape.circle,
                   border: Border.all(color: const Color(0xFFDF4A4F), width: 2),
                 ),
-                child: const Center(
+                child: Center(
                   child: Text(
                     'ES',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 54,
+                      fontSize: size * 0.23,
                       fontWeight: FontWeight.w300,
                       letterSpacing: 1.2,
                     ),
                   ),
                 ),
-              )
+              ),
             ],
           ),
         );
@@ -509,13 +526,18 @@ class _CriticalPanel extends StatelessWidget {
                       fontWeight: FontWeight.w500,
                     )),
               ),
-              Text('CRITICAL',
-                  style: TextStyle(
-                    color: Color(0xFFFF3B30),
-                    fontWeight: FontWeight.w700,
-                    fontSize: 46 / 2,
-                    letterSpacing: 1.2,
-                  )),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text('CRITICAL',
+                      style: TextStyle(
+                        color: Color(0xFFFF3B30),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 46 / 2,
+                        letterSpacing: 1.2,
+                      )),
+                ),
+              ),
             ],
           ),
           SizedBox(height: 8),
@@ -541,12 +563,16 @@ class _CallButton extends StatelessWidget {
     required this.icon,
     required this.color,
     required this.label,
+    required this.size,
+    required this.iconSize,
     required this.onTap,
   });
 
   final IconData icon;
   final Color color;
   final String label;
+  final double size;
+  final double iconSize;
   final VoidCallback onTap;
 
   @override
@@ -556,8 +582,8 @@ class _CallButton extends StatelessWidget {
         GestureDetector(
           onTap: onTap,
           child: Container(
-            width: 126,
-            height: 126,
+            width: size,
+            height: size,
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
@@ -580,7 +606,7 @@ class _CallButton extends StatelessWidget {
                 ),
               ],
             ),
-            child: Icon(icon, color: Colors.white, size: 52),
+            child: Icon(icon, color: Colors.white, size: iconSize),
           ),
         ),
         const SizedBox(height: 12),

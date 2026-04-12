@@ -1,12 +1,16 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../managers/alert_manager.dart';
 import '../models/incoming_alert.dart';
 import '../services/audio_service.dart';
 import '../services/device_auth_service.dart';
-import 'widgets/novitas_logo.dart';
 
 enum _OverlayStep { incoming, audioActions, textAlert, declineReasons, confirmation }
 
@@ -38,6 +42,14 @@ class _AlertOverlayState extends State<AlertOverlay>
   int _secondsLeft = _totalSeconds;
   Timer? _dismissTimer;
   Timer? _tickTimer;
+  final AudioPlayer _previewPlayer = AudioPlayer();
+  StreamSubscription<Duration?>? _durationSub;
+  StreamSubscription<Duration>? _positionSub;
+  StreamSubscription<PlayerState>? _playerStateSub;
+  Duration _audioDuration = Duration.zero;
+  Duration _audioPosition = Duration.zero;
+  bool _isAudioPlaying = false;
+  bool _isPreparingAudio = false;
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
   @override
@@ -50,6 +62,19 @@ class _AlertOverlayState extends State<AlertOverlay>
       duration: const Duration(milliseconds: 1800),
     )..repeat();
     _pulseAnim = CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut);
+
+    _durationSub = _previewPlayer.durationStream.listen((duration) {
+      if (!mounted || duration == null) return;
+      setState(() => _audioDuration = duration);
+    });
+    _positionSub = _previewPlayer.positionStream.listen((position) {
+      if (!mounted) return;
+      setState(() => _audioPosition = position);
+    });
+    _playerStateSub = _previewPlayer.playerStateStream.listen((state) {
+      if (!mounted) return;
+      setState(() => _isAudioPlaying = state.playing);
+    });
 
     // Start looping ringtone (bypasses silent switch via AudioService)
     AudioService.instance.playLoop();
@@ -86,6 +111,10 @@ class _AlertOverlayState extends State<AlertOverlay>
   @override
   void dispose() {
     _cancelCountdown();
+    _durationSub?.cancel();
+    _positionSub?.cancel();
+    _playerStateSub?.cancel();
+    _previewPlayer.dispose();
     _pulseCtrl.dispose();
     super.dispose();
   }
@@ -96,7 +125,12 @@ class _AlertOverlayState extends State<AlertOverlay>
   /// Phone already unlocked → no Face ID re-prompt here.
   void _goTo(_OverlayStep next) {
     _cancelCountdown();
-    AudioService.instance.stop();
+    unawaited(AudioService.instance.stop());
+    if (next == _OverlayStep.audioActions) {
+      unawaited(_startAudioPreview());
+    } else {
+      unawaited(_stopAudioPreview());
+    }
     if (!mounted) return;
     setState(() => _step = next);
   }
@@ -106,7 +140,66 @@ class _AlertOverlayState extends State<AlertOverlay>
   Future<void> _moveWithAuth(_OverlayStep next) async {
     final authenticated = await DeviceAuthService.authenticateIfAvailable();
     if (!mounted || !authenticated) return;
+    if (next != _OverlayStep.audioActions) {
+      await _stopAudioPreview();
+    }
     setState(() => _step = next);
+  }
+
+  Future<void> _startAudioPreview() async {
+    if (widget.alert.type is! AudioAlert || _isPreparingAudio) return;
+    _isPreparingAudio = true;
+    try {
+      final audio = widget.alert.type as AudioAlert;
+      await _previewPlayer.stop();
+      await _previewPlayer.setLoopMode(LoopMode.off);
+
+      if (audio.base64Data.isNotEmpty) {
+        final bytes = base64Decode(audio.base64Data);
+        final tempDir = await getTemporaryDirectory();
+        final safeName = audio.fileName.isEmpty ? 'incoming_audio.mp3' : audio.fileName;
+        final file = File('${tempDir.path}/$safeName');
+        await file.writeAsBytes(bytes, flush: true);
+        await _previewPlayer.setFilePath(file.path);
+      } else {
+        await _previewPlayer.setAsset('assets/audio/emergency_voice.mp3');
+      }
+      await _previewPlayer.play();
+    } catch (_) {
+      await _previewPlayer.setAsset('assets/audio/emergency_voice.mp3');
+      await _previewPlayer.play();
+    } finally {
+      _isPreparingAudio = false;
+    }
+  }
+
+  Future<void> _stopAudioPreview() async {
+    _audioPosition = Duration.zero;
+    _audioDuration = Duration.zero;
+    _isAudioPlaying = false;
+    await _previewPlayer.stop();
+  }
+
+  Future<void> _toggleAudioPlayback() async {
+    if (_previewPlayer.playerState.playing) {
+      await _previewPlayer.pause();
+    } else {
+      await _previewPlayer.play();
+    }
+  }
+
+  Future<void> _seekBy(Duration delta) async {
+    final total = _audioDuration.inMilliseconds;
+    if (total <= 0) return;
+    final current = _audioPosition.inMilliseconds;
+    final nextMs = (current + delta.inMilliseconds).clamp(0, total);
+    await _previewPlayer.seek(Duration(milliseconds: nextMs));
+  }
+
+  String _mmss(Duration duration) {
+    final minutes = duration.inMinutes.toString().padLeft(1, '0');
+    final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
   }
 
   // ── Build ──────────────────────────────────────────────────────────────────
@@ -143,72 +236,81 @@ class _AlertOverlayState extends State<AlertOverlay>
   // INCOMING CALL SCREEN  (pixel-perfect match to the design)
   // ════════════════════════════════════════════════════════════════════════════
   Widget _incomingScreen() {
-    return Padding(
+    return LayoutBuilder(
       key: const ValueKey('incoming'),
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 36),
-      child: Column(
-        children: [
-          // ── INCOMING ALERT badge ───────────────────────────────────────────
-          _IncomingBadge(secondsLeft: _secondsLeft),
+      builder: (context, constraints) {
+        final heightScale = (constraints.maxHeight / 820).clamp(0.74, 1.0);
+        final widthScale = (constraints.maxWidth / 430).clamp(0.86, 1.0);
+        final scale = math.min(heightScale, widthScale);
+        final horizontalPadding = 20.0 * widthScale;
+        final buttonSize = 63.0 * scale; // 50% down from original 126
+        final buttonIconSize = 26.0 * scale;
 
-          const SizedBox(height: 36),
-
-          // ── Pulsing rings + ES avatar ──────────────────────────────────────
-          _PulsingAvatar(animation: _pulseAnim),
-
-          const SizedBox(height: 32),
-
-          // ── Title ─────────────────────────────────────────────────────────
-          const Text(
-            'Emergency\nSystem',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 46,
-              fontWeight: FontWeight.w400,
-              height: 1.1,
-            ),
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            horizontalPadding,
+            18 * scale,
+            horizontalPadding,
+            12 * scale,
           ),
-
-          const SizedBox(height: 10),
-
-          // ── Subtitle ──────────────────────────────────────────────────────
-          const Text(
-            'Secure Emergency Response',
-            style: TextStyle(color: Color(0xFF849090), fontSize: 17),
-          ),
-
-          const Spacer(),
-
-          // ── Critical panel ────────────────────────────────────────────────
-          const _CriticalPanel(),
-
-          const SizedBox(height: 40),
-
-          // ── NO / YES buttons ──────────────────────────────────────────────
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          child: Column(
             children: [
-              _CallButton(
-                icon: Icons.close,
-                color: const Color(0xFFEF4444),
-                label: 'NO',
-                onTap: () => _goTo(_OverlayStep.declineReasons),
-              ),
-              _CallButton(
-                icon: Icons.check,
-                color: const Color(0xFF22C55E),
-                label: 'YES',
-                onTap: () => _goTo(
-                  widget.alert.type is TextAlert
-                      ? _OverlayStep.textAlert
-                      : _OverlayStep.audioActions,
+              const _IncomingBadge(),
+              SizedBox(height: 30 * scale),
+              _PulsingAvatar(animation: _pulseAnim, size: 232 * scale),
+              SizedBox(height: 20 * scale),
+              Text(
+                'Emergency\nSystem',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 58 * scale,
+                  fontWeight: FontWeight.w400,
+                  height: 1.04,
                 ),
+              ),
+              SizedBox(height: 8 * scale),
+              Text(
+                'Secure Emergency Response',
+                style: TextStyle(
+                  color: const Color(0xFF6A7775),
+                  fontSize: 18 * scale,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const Spacer(),
+              _CriticalPanel(scale: scale),
+              SizedBox(height: 16 * scale),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _CallButton(
+                    icon: Icons.close,
+                    color: const Color(0xFFEF4444),
+                    label: 'NO',
+                    size: buttonSize,
+                    iconSize: buttonIconSize,
+                    onTap: () => _goTo(_OverlayStep.declineReasons),
+                  ),
+                  SizedBox(width: 44 * widthScale),
+                  _CallButton(
+                    icon: Icons.check,
+                    color: const Color(0xFF22C55E),
+                    label: 'YES',
+                    size: buttonSize,
+                    iconSize: buttonIconSize,
+                    onTap: () => _goTo(
+                      widget.alert.type is TextAlert
+                          ? _OverlayStep.textAlert
+                          : _OverlayStep.audioActions,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -216,6 +318,14 @@ class _AlertOverlayState extends State<AlertOverlay>
   // AUDIO ACTIONS SCREEN
   // ════════════════════════════════════════════════════════════════════════════
   Widget _audioActionsScreen() {
+    final duration = _audioDuration == Duration.zero
+        ? const Duration(minutes: 1, seconds: 4)
+        : _audioDuration;
+    final position = _audioPosition > duration ? duration : _audioPosition;
+    final sliderValue = duration.inMilliseconds == 0
+        ? 0.0
+        : position.inMilliseconds / duration.inMilliseconds;
+
     return _Layout(
       key: const ValueKey('audio'),
       title: 'Emergency System',
@@ -223,20 +333,48 @@ class _AlertOverlayState extends State<AlertOverlay>
       topBadge: 'PLAYING',
       center: Column(
         children: [
-          const _WavePlaceholder(),
-          const SizedBox(height: 8),
-          Slider(
-            value: 0.32,
-            onChanged: (_) {},
-            activeColor: const Color(0xFFEF4444),
-            inactiveColor: const Color(0xFF334155),
+          _AudioWaveform(
+            progress: sliderValue,
+            isPlaying: _isAudioPlaying,
           ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Text(_mmss(position), style: const TextStyle(color: Color(0xFF6B7280))),
+              const Spacer(),
+              Text(_mmss(duration), style: const TextStyle(color: Color(0xFF6B7280))),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Slider(
+            value: sliderValue.clamp(0.0, 1.0),
+            onChanged: (value) async {
+              final target = Duration(
+                milliseconds: (duration.inMilliseconds * value).round(),
+              );
+              await _previewPlayer.seek(target);
+            },
+            activeColor: const Color(0xFFFF4B4B),
+            inactiveColor: const Color(0xFF2A3045),
+          ),
+          const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: const [
-              CircleAvatar(backgroundColor: Color(0xFF1A223C), child: Icon(Icons.replay_10, color: Colors.white)),
-              CircleAvatar(radius: 30, backgroundColor: Color(0xFFEF4444), child: Icon(Icons.play_arrow, color: Colors.white, size: 34)),
-              CircleAvatar(backgroundColor: Color(0xFF1A223C), child: Icon(Icons.forward_10, color: Colors.white)),
+            children: [
+              _MiniControlButton(
+                icon: Icons.replay_10_rounded,
+                onTap: () => _seekBy(const Duration(seconds: -10)),
+              ),
+              _MainControlButton(
+                icon: _isAudioPlaying
+                    ? Icons.pause_rounded
+                    : Icons.play_arrow_rounded,
+                onTap: _toggleAudioPlayback,
+              ),
+              _MiniControlButton(
+                icon: Icons.forward_10_rounded,
+                onTap: () => _seekBy(const Duration(seconds: 10)),
+              ),
             ],
           ),
         ],
@@ -367,17 +505,16 @@ class _AlertOverlayState extends State<AlertOverlay>
 // INCOMING ALERT BADGE  (• INCOMING ALERT  |  15s countdown)
 // ══════════════════════════════════════════════════════════════════════════════
 class _IncomingBadge extends StatelessWidget {
-  const _IncomingBadge({required this.secondsLeft});
-  final int secondsLeft;
+  const _IncomingBadge();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 9),
+      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0x441F0A0A),
+        color: const Color(0x7A3A1A13),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0x99C53E2C), width: 1.5),
+        border: Border.all(color: const Color(0xC9482D26), width: 1.25),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -394,26 +531,10 @@ class _IncomingBadge extends StatelessWidget {
           const Text(
             'INCOMING ALERT',
             style: TextStyle(
-              color: Color(0xFFFF6A67),
+              color: Color(0xFFFF6E69),
               fontWeight: FontWeight.w700,
-              letterSpacing: 1.5,
-              fontSize: 14,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: const Color(0x33FF3B30),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              '${secondsLeft}s',
-              style: const TextStyle(
-                color: Color(0xFFFF6A67),
-                fontWeight: FontWeight.w600,
-                fontSize: 12,
-              ),
+              letterSpacing: 1.9,
+              fontSize: 36 / 2,
             ),
           ),
         ],
@@ -426,47 +547,40 @@ class _IncomingBadge extends StatelessWidget {
 // PULSING AVATAR  — animated concentric rings + ES avatar
 // ══════════════════════════════════════════════════════════════════════════════
 class _PulsingAvatar extends StatelessWidget {
-  const _PulsingAvatar({required this.animation});
+  const _PulsingAvatar({required this.animation, required this.size});
   final Animation<double> animation;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: animation,
       builder: (context, _) {
-        // Three rings staggered by 1/3 of the cycle
         return SizedBox(
-          width: 200,
-          height: 200,
+          width: size,
+          height: size,
           child: Stack(
             alignment: Alignment.center,
             children: [
-              _ring(offset: 0.0,   baseSize: 200, maxExtra: 0),
-              _ring(offset: 0.33,  baseSize: 170, maxExtra: 0),
-              _ring(offset: 0.66,  baseSize: 140, maxExtra: 0),
-              // ES avatar
+              _ring(offset: 0.0, baseSize: size * 0.95),
+              _ring(offset: 0.33, baseSize: size * 0.81),
+              _ring(offset: 0.66, baseSize: size * 0.68),
               Container(
-                width: 110,
-                height: 110,
+                width: size * 0.58,
+                height: size * 0.58,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFDC2626),
+                  color: const Color(0xFFDF0018),
                   shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFEF4444).withOpacity(0.5),
-                      blurRadius: 24,
-                      spreadRadius: 4,
-                    ),
-                  ],
+                  border: Border.all(color: const Color(0xFFDF4A4F), width: 2),
                 ),
-                child: const Center(
+                child: Center(
                   child: Text(
                     'ES',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 38,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 2,
+                      fontSize: size * 0.23,
+                      fontWeight: FontWeight.w300,
+                      letterSpacing: 1.2,
                     ),
                   ),
                 ),
@@ -478,23 +592,22 @@ class _PulsingAvatar extends StatelessWidget {
     );
   }
 
-  Widget _ring({required double offset, required double baseSize, required int maxExtra}) {
+  Widget _ring({required double offset, required double baseSize}) {
     final t = (animation.value + offset) % 1.0;
-    final scale = 0.85 + t * 0.25;
-    final opacity = (1.0 - t) * 0.45;
+    final scale = 0.92 + t * 0.10;
+    final opacity = (1.0 - t) * 0.32;
     return Transform.scale(
       scale: scale,
       child: Container(
         width: baseSize,
         height: baseSize,
         decoration: BoxDecoration(
-          shape: BoxShape.circle,
+          borderRadius: BorderRadius.circular(42),
           border: Border.all(
-            color: const Color(0xFF22C55E).withOpacity(opacity),
-            width: 2,
+            color: const Color(0xFF0F8E3D).withOpacity(opacity),
+            width: 2.2,
           ),
-          // Subtle filled glow
-          color: const Color(0xFF22C55E).withOpacity(opacity * 0.08),
+          color: const Color(0xFF19A24A).withOpacity(opacity * 0.05),
         ),
       ),
     );
@@ -505,36 +618,59 @@ class _PulsingAvatar extends StatelessWidget {
 // CRITICAL PANEL
 // ══════════════════════════════════════════════════════════════════════════════
 class _CriticalPanel extends StatelessWidget {
-  const _CriticalPanel();
+  const _CriticalPanel({this.scale = 1});
+  final double scale;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0x8848180E),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0x66C53E2C), width: 1.5),
+      padding: EdgeInsets.fromLTRB(
+        28 * scale,
+        22 * scale,
+        28 * scale,
+        22 * scale,
       ),
-      child: const Column(
+      decoration: BoxDecoration(
+        color: const Color(0xAA3A1009),
+        borderRadius: BorderRadius.circular(34 * scale),
+        border: Border.all(color: const Color(0xCCA9362C), width: 1.6),
+      ),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Expanded(
                 child: Text('Priority Level',
-                    style: TextStyle(color: Color(0xFFFDA4AF))),
+                    style: TextStyle(
+                      color: Color(0xFF92716A),
+                      fontSize: (38 / 2) * scale,
+                      fontWeight: FontWeight.w500,
+                    )),
               ),
-              Text('CRITICAL',
-                  style: TextStyle(
-                      color: Color(0xFFFF3B30), fontWeight: FontWeight.w700)),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text('CRITICAL',
+                      style: TextStyle(
+                        color: Color(0xFFFF3B30),
+                        fontWeight: FontWeight.w700,
+                        fontSize: (46 / 2) * scale,
+                        letterSpacing: 1.2,
+                      )),
+                ),
+              ),
             ],
           ),
-          SizedBox(height: 8),
+          SizedBox(height: 8 * scale),
           Text(
             'Immediate response required.\nAuthentication will be required after you accept.',
-            style: TextStyle(color: Color(0xFFFECACA), height: 1.4),
+            style: TextStyle(
+              color: Color(0xFF9F7971),
+              height: 1.4,
+              fontSize: (21 / 1.6) * scale,
+            ),
           ),
         ],
       ),
@@ -550,12 +686,16 @@ class _CallButton extends StatelessWidget {
     required this.icon,
     required this.color,
     required this.label,
+    required this.size,
+    required this.iconSize,
     required this.onTap,
   });
 
   final IconData icon;
   final Color color;
   final String label;
+  final double size;
+  final double iconSize;
   final VoidCallback onTap;
 
   @override
@@ -565,29 +705,40 @@ class _CallButton extends StatelessWidget {
         GestureDetector(
           onTap: onTap,
           child: Container(
-            width: 88,
-            height: 88,
+            width: size,
+            height: size,
             decoration: BoxDecoration(
-              color: color,
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  color.withOpacity(0.96),
+                  color.withOpacity(0.86),
+                ],
+              ),
               shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.white.withOpacity(0.15),
+                width: 2,
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: color.withOpacity(0.45),
-                  blurRadius: 20,
-                  spreadRadius: 2,
+                  color: color.withOpacity(0.28),
+                  blurRadius: 24,
+                  spreadRadius: 3,
                 ),
               ],
             ),
-            child: Icon(icon, color: Colors.white, size: 36),
+            child: Icon(icon, color: Colors.white, size: iconSize),
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         Text(
           label,
-          style: const TextStyle(
-            color: Colors.white70,
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
+          style: TextStyle(
+            color: Color(0xFF848D8A),
+            fontSize: size * 0.26,
+            fontWeight: FontWeight.w600,
             letterSpacing: 0.5,
           ),
         ),
@@ -792,24 +943,93 @@ class _ActionButton extends StatelessWidget {
   }
 }
 
-class _WavePlaceholder extends StatelessWidget {
-  const _WavePlaceholder();
+class _AudioWaveform extends StatelessWidget {
+  const _AudioWaveform({required this.progress, required this.isPlaying});
+  final double progress;
+  final bool isPlaying;
 
   @override
   Widget build(BuildContext context) {
+    final bars = List.generate(12, (i) {
+      final phase = (progress * math.pi * 8) + (i * 0.7);
+      final dynamicGain = isPlaying ? (math.sin(phase).abs() * 22) : 8;
+      final baseHeight = 20 + ((i % 3) * 10);
+      return (baseHeight + dynamicGain).clamp(16, 72).toDouble();
+    });
+
     return SizedBox(
-      height: 80,
+      height: 82,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: List.generate(16, (i) => Container(
-          width: 4,
-          height: i.isEven ? 18 + (i * 2) : 10 + (i * 3),
-          margin: const EdgeInsets.symmetric(horizontal: 2),
-          decoration: BoxDecoration(
-            color: i % 3 == 0 ? const Color(0xFFEF4444) : const Color(0xFFF87171),
-            borderRadius: BorderRadius.circular(4),
+        children: List.generate(
+          bars.length,
+          (i) => AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            width: 7,
+            height: bars[i],
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(999),
+              gradient: const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFFFF6A63), Color(0xFF8F1A1A)],
+              ),
+            ),
           ),
-        )),
+        ),
+      ),
+    );
+  }
+}
+
+class _MiniControlButton extends StatelessWidget {
+  const _MiniControlButton({required this.icon, required this.onTap});
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(30),
+      onTap: onTap,
+      child: Container(
+        width: 64,
+        height: 64,
+        decoration: BoxDecoration(
+          color: const Color(0xAA1C2135),
+          shape: BoxShape.circle,
+          border: Border.all(color: const Color(0x334B5A89)),
+        ),
+        child: Icon(icon, color: const Color(0xFFD1D5DB), size: 26),
+      ),
+    );
+  }
+}
+
+class _MainControlButton extends StatelessWidget {
+  const _MainControlButton({required this.icon, required this.onTap});
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(46),
+      onTap: onTap,
+      child: Container(
+        width: 92,
+        height: 92,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFEF4444), Color(0xFFC51616)],
+          ),
+          border: Border.all(color: const Color(0x66FFFFFF), width: 1),
+        ),
+        child: Icon(icon, color: Colors.white, size: 42),
       ),
     );
   }

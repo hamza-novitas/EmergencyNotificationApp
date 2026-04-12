@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
@@ -150,14 +151,16 @@ class _AlertOverlayState extends State<AlertOverlay>
         final titleSize = compact ? 46.0 : 58.0;
         final subtitleSize = compact ? 16.0 : 18.0;
         final avatarSize = compact ? 190.0 : 232.0;
-        final buttonSize = compact ? 108.0 : 126.0;
-        final buttonIconSize = compact ? 46.0 : 52.0;
+        final buttonSize = compact ? 86.0 : 98.0;
+        final buttonIconSize = compact ? 23.0 : 26.0;
         final horizontalPadding = compact ? 16.0 : 20.0;
+        final bottomSafeInset = MediaQuery.viewPaddingOf(context).bottom;
+        final bottomPadding = math.max(20.0, bottomSafeInset + 12);
 
         return SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(horizontalPadding, 36, horizontalPadding, 24),
+          padding: EdgeInsets.fromLTRB(horizontalPadding, 36, horizontalPadding, bottomPadding),
           child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight - 60),
+            constraints: BoxConstraints(minHeight: constraints.maxHeight - bottomPadding),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -197,11 +200,11 @@ class _AlertOverlayState extends State<AlertOverlay>
                 // ── Critical panel ────────────────────────────────────────────
                 const _CriticalPanel(),
 
-                SizedBox(height: compact ? 20 : 34),
+                SizedBox(height: compact ? 20 : 30),
 
                 // ── NO / YES buttons ──────────────────────────────────────────
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     _CallButton(
                       icon: Icons.close,
@@ -211,6 +214,7 @@ class _AlertOverlayState extends State<AlertOverlay>
                       iconSize: buttonIconSize,
                       onTap: () => _goTo(_OverlayStep.declineReasons),
                     ),
+                    SizedBox(width: compact ? 24 : 36),
                     _CallButton(
                       icon: Icons.check,
                       color: const Color(0xFF22C55E),

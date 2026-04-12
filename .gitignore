@@ -1,0 +1,48 @@
+# OS / editor artifacts
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*.iml
+.idea/
+.vscode/
+
+# Flutter / Dart build outputs
+.dart_tool/
+.packages
+.pub/
+build/
+coverage/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Dependency lockfiles (keep pubspec.lock for apps)
+# pubspec.lock
+
+# Generated platform artifacts
+android/.gradle/
+android/local.properties
+android/**/GeneratedPluginRegistrant.java
+ios/Flutter/
+ios/Pods/
+ios/.symlinks/
+ios/Runner/GeneratedPluginRegistrant.*
+ios/Podfile.lock
+
+# Fastlane / signing / secrets
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+*.cer
+.env
+.env.*
+
+# Firebase / cloud config local files
+google-services.json
+GoogleService-Info.plist
+
+# Logs and temp
+*.log
+*.tmp
+*.temp

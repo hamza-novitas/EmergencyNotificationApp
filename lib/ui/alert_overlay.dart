@@ -145,13 +145,13 @@ class _AlertOverlayState extends State<AlertOverlay>
   Widget _incomingScreen() {
     return Padding(
       key: const ValueKey('incoming'),
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 36),
+      padding: const EdgeInsets.fromLTRB(20, 56, 20, 30),
       child: Column(
         children: [
           // ── INCOMING ALERT badge ───────────────────────────────────────────
           _IncomingBadge(secondsLeft: _secondsLeft),
 
-          const SizedBox(height: 36),
+          const SizedBox(height: 44),
 
           // ── Pulsing rings + ES avatar ──────────────────────────────────────
           _PulsingAvatar(animation: _pulseAnim),
@@ -164,9 +164,9 @@ class _AlertOverlayState extends State<AlertOverlay>
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Colors.white,
-              fontSize: 46,
+              fontSize: 58,
               fontWeight: FontWeight.w400,
-              height: 1.1,
+              height: 1.06,
             ),
           ),
 
@@ -175,7 +175,7 @@ class _AlertOverlayState extends State<AlertOverlay>
           // ── Subtitle ──────────────────────────────────────────────────────
           const Text(
             'Secure Emergency Response',
-            style: TextStyle(color: Color(0xFF849090), fontSize: 17),
+            style: TextStyle(color: Color(0xFF6A7775), fontSize: 18),
           ),
 
           const Spacer(),
@@ -183,7 +183,7 @@ class _AlertOverlayState extends State<AlertOverlay>
           // ── Critical panel ────────────────────────────────────────────────
           const _CriticalPanel(),
 
-          const SizedBox(height: 40),
+          const SizedBox(height: 34),
 
           // ── NO / YES buttons ──────────────────────────────────────────────
           Row(
@@ -373,11 +373,11 @@ class _IncomingBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 9),
+      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0x441F0A0A),
+        color: const Color(0x7A3A1A13),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0x99C53E2C), width: 1.5),
+        border: Border.all(color: const Color(0xC9482D26), width: 1.25),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -394,27 +394,15 @@ class _IncomingBadge extends StatelessWidget {
           const Text(
             'INCOMING ALERT',
             style: TextStyle(
-              color: Color(0xFFFF6A67),
+              color: Color(0xFFFF6E69),
               fontWeight: FontWeight.w700,
-              letterSpacing: 1.5,
-              fontSize: 14,
+              letterSpacing: 1.9,
+              fontSize: 36 / 2,
             ),
           ),
-          const SizedBox(width: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: const Color(0x33FF3B30),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              '${secondsLeft}s',
-              style: const TextStyle(
-                color: Color(0xFFFF6A67),
-                fontWeight: FontWeight.w600,
-                fontSize: 12,
-              ),
-            ),
+          Offstage(
+            offstage: true,
+            child: Text('$secondsLeft'),
           ),
         ],
       ),
@@ -434,43 +422,35 @@ class _PulsingAvatar extends StatelessWidget {
     return AnimatedBuilder(
       animation: animation,
       builder: (context, _) {
-        // Three rings staggered by 1/3 of the cycle
         return SizedBox(
-          width: 200,
-          height: 200,
+          width: 232,
+          height: 232,
           child: Stack(
             alignment: Alignment.center,
             children: [
-              _ring(offset: 0.0,   baseSize: 200, maxExtra: 0),
-              _ring(offset: 0.33,  baseSize: 170, maxExtra: 0),
-              _ring(offset: 0.66,  baseSize: 140, maxExtra: 0),
-              // ES avatar
+              _ring(offset: 0.0, baseSize: 220),
+              _ring(offset: 0.33, baseSize: 188),
+              _ring(offset: 0.66, baseSize: 158),
               Container(
-                width: 110,
-                height: 110,
+                width: 134,
+                height: 134,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFDC2626),
+                  color: const Color(0xFFDF0018),
                   shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFEF4444).withOpacity(0.5),
-                      blurRadius: 24,
-                      spreadRadius: 4,
-                    ),
-                  ],
+                  border: Border.all(color: const Color(0xFFDF4A4F), width: 2),
                 ),
                 child: const Center(
                   child: Text(
                     'ES',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 38,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 2,
+                      fontSize: 54,
+                      fontWeight: FontWeight.w300,
+                      letterSpacing: 1.2,
                     ),
                   ),
                 ),
-              ),
+              )
             ],
           ),
         );
@@ -478,23 +458,22 @@ class _PulsingAvatar extends StatelessWidget {
     );
   }
 
-  Widget _ring({required double offset, required double baseSize, required int maxExtra}) {
+  Widget _ring({required double offset, required double baseSize}) {
     final t = (animation.value + offset) % 1.0;
-    final scale = 0.85 + t * 0.25;
-    final opacity = (1.0 - t) * 0.45;
+    final scale = 0.92 + t * 0.10;
+    final opacity = (1.0 - t) * 0.32;
     return Transform.scale(
       scale: scale,
       child: Container(
         width: baseSize,
         height: baseSize,
         decoration: BoxDecoration(
-          shape: BoxShape.circle,
+          borderRadius: BorderRadius.circular(42),
           border: Border.all(
-            color: const Color(0xFF22C55E).withOpacity(opacity),
-            width: 2,
+            color: const Color(0xFF0F8E3D).withOpacity(opacity),
+            width: 2.2,
           ),
-          // Subtle filled glow
-          color: const Color(0xFF22C55E).withOpacity(opacity * 0.08),
+          color: const Color(0xFF19A24A).withOpacity(opacity * 0.05),
         ),
       ),
     );
@@ -511,11 +490,11 @@ class _CriticalPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(28, 22, 28, 22),
       decoration: BoxDecoration(
-        color: const Color(0x8848180E),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0x66C53E2C), width: 1.5),
+        color: const Color(0xAA3A1009),
+        borderRadius: BorderRadius.circular(34),
+        border: Border.all(color: const Color(0xCCA9362C), width: 1.6),
       ),
       child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -524,17 +503,29 @@ class _CriticalPanel extends StatelessWidget {
             children: [
               Expanded(
                 child: Text('Priority Level',
-                    style: TextStyle(color: Color(0xFFFDA4AF))),
+                    style: TextStyle(
+                      color: Color(0xFF92716A),
+                      fontSize: 38 / 2,
+                      fontWeight: FontWeight.w500,
+                    )),
               ),
               Text('CRITICAL',
                   style: TextStyle(
-                      color: Color(0xFFFF3B30), fontWeight: FontWeight.w700)),
+                    color: Color(0xFFFF3B30),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 46 / 2,
+                    letterSpacing: 1.2,
+                  )),
             ],
           ),
           SizedBox(height: 8),
           Text(
             'Immediate response required.\nAuthentication will be required after you accept.',
-            style: TextStyle(color: Color(0xFFFECACA), height: 1.4),
+            style: TextStyle(
+              color: Color(0xFF9F7971),
+              height: 1.4,
+              fontSize: 21 / 1.6,
+            ),
           ),
         ],
       ),
@@ -565,29 +556,40 @@ class _CallButton extends StatelessWidget {
         GestureDetector(
           onTap: onTap,
           child: Container(
-            width: 88,
-            height: 88,
+            width: 126,
+            height: 126,
             decoration: BoxDecoration(
-              color: color,
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  color.withOpacity(0.96),
+                  color.withOpacity(0.86),
+                ],
+              ),
               shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.white.withOpacity(0.15),
+                width: 2,
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: color.withOpacity(0.45),
-                  blurRadius: 20,
-                  spreadRadius: 2,
+                  color: color.withOpacity(0.28),
+                  blurRadius: 24,
+                  spreadRadius: 3,
                 ),
               ],
             ),
-            child: Icon(icon, color: Colors.white, size: 36),
+            child: Icon(icon, color: Colors.white, size: 52),
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         Text(
           label,
           style: const TextStyle(
-            color: Colors.white70,
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
+            color: Color(0xFF848D8A),
+            fontSize: 41 / 2,
+            fontWeight: FontWeight.w600,
             letterSpacing: 0.5,
           ),
         ),

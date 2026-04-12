@@ -1,13 +1,16 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../managers/alert_manager.dart';
 import '../models/incoming_alert.dart';
 import '../services/audio_service.dart';
 import '../services/device_auth_service.dart';
-import 'widgets/novitas_logo.dart';
 
 enum _OverlayStep { incoming, audioActions, textAlert, declineReasons, confirmation }
 
@@ -39,6 +42,14 @@ class _AlertOverlayState extends State<AlertOverlay>
   int _secondsLeft = _totalSeconds;
   Timer? _dismissTimer;
   Timer? _tickTimer;
+  final AudioPlayer _previewPlayer = AudioPlayer();
+  StreamSubscription<Duration?>? _durationSub;
+  StreamSubscription<Duration>? _positionSub;
+  StreamSubscription<PlayerState>? _playerStateSub;
+  Duration _audioDuration = Duration.zero;
+  Duration _audioPosition = Duration.zero;
+  bool _isAudioPlaying = false;
+  bool _isPreparingAudio = false;
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
   @override
@@ -51,6 +62,19 @@ class _AlertOverlayState extends State<AlertOverlay>
       duration: const Duration(milliseconds: 1800),
     )..repeat();
     _pulseAnim = CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut);
+
+    _durationSub = _previewPlayer.durationStream.listen((duration) {
+      if (!mounted || duration == null) return;
+      setState(() => _audioDuration = duration);
+    });
+    _positionSub = _previewPlayer.positionStream.listen((position) {
+      if (!mounted) return;
+      setState(() => _audioPosition = position);
+    });
+    _playerStateSub = _previewPlayer.playerStateStream.listen((state) {
+      if (!mounted) return;
+      setState(() => _isAudioPlaying = state.playing);
+    });
 
     // Start looping ringtone (bypasses silent switch via AudioService)
     AudioService.instance.playLoop();
@@ -87,6 +111,10 @@ class _AlertOverlayState extends State<AlertOverlay>
   @override
   void dispose() {
     _cancelCountdown();
+    _durationSub?.cancel();
+    _positionSub?.cancel();
+    _playerStateSub?.cancel();
+    _previewPlayer.dispose();
     _pulseCtrl.dispose();
     super.dispose();
   }
@@ -97,7 +125,12 @@ class _AlertOverlayState extends State<AlertOverlay>
   /// Phone already unlocked → no Face ID re-prompt here.
   void _goTo(_OverlayStep next) {
     _cancelCountdown();
-    AudioService.instance.stop();
+    unawaited(AudioService.instance.stop());
+    if (next == _OverlayStep.audioActions) {
+      unawaited(_startAudioPreview());
+    } else {
+      unawaited(_stopAudioPreview());
+    }
     if (!mounted) return;
     setState(() => _step = next);
   }
@@ -107,7 +140,66 @@ class _AlertOverlayState extends State<AlertOverlay>
   Future<void> _moveWithAuth(_OverlayStep next) async {
     final authenticated = await DeviceAuthService.authenticateIfAvailable();
     if (!mounted || !authenticated) return;
+    if (next != _OverlayStep.audioActions) {
+      await _stopAudioPreview();
+    }
     setState(() => _step = next);
+  }
+
+  Future<void> _startAudioPreview() async {
+    if (widget.alert.type is! AudioAlert || _isPreparingAudio) return;
+    _isPreparingAudio = true;
+    try {
+      final audio = widget.alert.type as AudioAlert;
+      await _previewPlayer.stop();
+      await _previewPlayer.setLoopMode(LoopMode.off);
+
+      if (audio.base64Data.isNotEmpty) {
+        final bytes = base64Decode(audio.base64Data);
+        final tempDir = await getTemporaryDirectory();
+        final safeName = audio.fileName.isEmpty ? 'incoming_audio.mp3' : audio.fileName;
+        final file = File('${tempDir.path}/$safeName');
+        await file.writeAsBytes(bytes, flush: true);
+        await _previewPlayer.setFilePath(file.path);
+      } else {
+        await _previewPlayer.setAsset('assets/audio/emergency_voice.mp3');
+      }
+      await _previewPlayer.play();
+    } catch (_) {
+      await _previewPlayer.setAsset('assets/audio/emergency_voice.mp3');
+      await _previewPlayer.play();
+    } finally {
+      _isPreparingAudio = false;
+    }
+  }
+
+  Future<void> _stopAudioPreview() async {
+    _audioPosition = Duration.zero;
+    _audioDuration = Duration.zero;
+    _isAudioPlaying = false;
+    await _previewPlayer.stop();
+  }
+
+  Future<void> _toggleAudioPlayback() async {
+    if (_previewPlayer.playerState.playing) {
+      await _previewPlayer.pause();
+    } else {
+      await _previewPlayer.play();
+    }
+  }
+
+  Future<void> _seekBy(Duration delta) async {
+    final total = _audioDuration.inMilliseconds;
+    if (total <= 0) return;
+    final current = _audioPosition.inMilliseconds;
+    final nextMs = (current + delta.inMilliseconds).clamp(0, total);
+    await _previewPlayer.seek(Duration(milliseconds: nextMs));
+  }
+
+  String _mmss(Duration duration) {
+    final minutes = duration.inMinutes.toString().padLeft(1, '0');
+    final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
   }
 
   // ── Build ──────────────────────────────────────────────────────────────────
@@ -226,6 +318,14 @@ class _AlertOverlayState extends State<AlertOverlay>
   // AUDIO ACTIONS SCREEN
   // ════════════════════════════════════════════════════════════════════════════
   Widget _audioActionsScreen() {
+    final duration = _audioDuration == Duration.zero
+        ? const Duration(minutes: 1, seconds: 4)
+        : _audioDuration;
+    final position = _audioPosition > duration ? duration : _audioPosition;
+    final sliderValue = duration.inMilliseconds == 0
+        ? 0.0
+        : position.inMilliseconds / duration.inMilliseconds;
+
     return _Layout(
       key: const ValueKey('audio'),
       title: 'Emergency System',
@@ -233,20 +333,48 @@ class _AlertOverlayState extends State<AlertOverlay>
       topBadge: 'PLAYING',
       center: Column(
         children: [
-          const _WavePlaceholder(),
-          const SizedBox(height: 8),
-          Slider(
-            value: 0.32,
-            onChanged: (_) {},
-            activeColor: const Color(0xFFEF4444),
-            inactiveColor: const Color(0xFF334155),
+          _AudioWaveform(
+            progress: sliderValue,
+            isPlaying: _isAudioPlaying,
           ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Text(_mmss(position), style: const TextStyle(color: Color(0xFF6B7280))),
+              const Spacer(),
+              Text(_mmss(duration), style: const TextStyle(color: Color(0xFF6B7280))),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Slider(
+            value: sliderValue.clamp(0.0, 1.0),
+            onChanged: (value) async {
+              final target = Duration(
+                milliseconds: (duration.inMilliseconds * value).round(),
+              );
+              await _previewPlayer.seek(target);
+            },
+            activeColor: const Color(0xFFFF4B4B),
+            inactiveColor: const Color(0xFF2A3045),
+          ),
+          const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: const [
-              CircleAvatar(backgroundColor: Color(0xFF1A223C), child: Icon(Icons.replay_10, color: Colors.white)),
-              CircleAvatar(radius: 30, backgroundColor: Color(0xFFEF4444), child: Icon(Icons.play_arrow, color: Colors.white, size: 34)),
-              CircleAvatar(backgroundColor: Color(0xFF1A223C), child: Icon(Icons.forward_10, color: Colors.white)),
+            children: [
+              _MiniControlButton(
+                icon: Icons.replay_10_rounded,
+                onTap: () => _seekBy(const Duration(seconds: -10)),
+              ),
+              _MainControlButton(
+                icon: _isAudioPlaying
+                    ? Icons.pause_rounded
+                    : Icons.play_arrow_rounded,
+                onTap: _toggleAudioPlayback,
+              ),
+              _MiniControlButton(
+                icon: Icons.forward_10_rounded,
+                onTap: () => _seekBy(const Duration(seconds: 10)),
+              ),
             ],
           ),
         ],
@@ -815,24 +943,93 @@ class _ActionButton extends StatelessWidget {
   }
 }
 
-class _WavePlaceholder extends StatelessWidget {
-  const _WavePlaceholder();
+class _AudioWaveform extends StatelessWidget {
+  const _AudioWaveform({required this.progress, required this.isPlaying});
+  final double progress;
+  final bool isPlaying;
 
   @override
   Widget build(BuildContext context) {
+    final bars = List.generate(12, (i) {
+      final phase = (progress * math.pi * 8) + (i * 0.7);
+      final dynamicGain = isPlaying ? (math.sin(phase).abs() * 22) : 8;
+      final baseHeight = 20 + ((i % 3) * 10);
+      return (baseHeight + dynamicGain).clamp(16, 72).toDouble();
+    });
+
     return SizedBox(
-      height: 80,
+      height: 82,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: List.generate(16, (i) => Container(
-          width: 4,
-          height: i.isEven ? 18 + (i * 2) : 10 + (i * 3),
-          margin: const EdgeInsets.symmetric(horizontal: 2),
-          decoration: BoxDecoration(
-            color: i % 3 == 0 ? const Color(0xFFEF4444) : const Color(0xFFF87171),
-            borderRadius: BorderRadius.circular(4),
+        children: List.generate(
+          bars.length,
+          (i) => AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            width: 7,
+            height: bars[i],
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(999),
+              gradient: const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFFFF6A63), Color(0xFF8F1A1A)],
+              ),
+            ),
           ),
-        )),
+        ),
+      ),
+    );
+  }
+}
+
+class _MiniControlButton extends StatelessWidget {
+  const _MiniControlButton({required this.icon, required this.onTap});
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(30),
+      onTap: onTap,
+      child: Container(
+        width: 64,
+        height: 64,
+        decoration: BoxDecoration(
+          color: const Color(0xAA1C2135),
+          shape: BoxShape.circle,
+          border: Border.all(color: const Color(0x334B5A89)),
+        ),
+        child: Icon(icon, color: const Color(0xFFD1D5DB), size: 26),
+      ),
+    );
+  }
+}
+
+class _MainControlButton extends StatelessWidget {
+  const _MainControlButton({required this.icon, required this.onTap});
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(46),
+      onTap: onTap,
+      child: Container(
+        width: 92,
+        height: 92,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFEF4444), Color(0xFFC51616)],
+          ),
+          border: Border.all(color: const Color(0x66FFFFFF), width: 1),
+        ),
+        child: Icon(icon, color: Colors.white, size: 42),
       ),
     );
   }

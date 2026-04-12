@@ -4,9 +4,10 @@ import 'package:provider/provider.dart';
 import '../managers/alert_manager.dart';
 import '../managers/signalr_manager.dart';
 import '../models/incoming_alert.dart';
+import '../services/audio_service.dart';
 import '../services/local_notification_service.dart';
-import 'widgets/novitas_logo.dart';
 import 'alert_overlay.dart';
+import 'widgets/novitas_logo.dart';
 
 class ContentView extends StatefulWidget {
   const ContentView({super.key});
@@ -18,13 +19,6 @@ class ContentView extends StatefulWidget {
 class _ContentViewState extends State<ContentView> {
   int _selectedIndex = 0;
 
-  void _onNotificationTapped() {
-    if (!mounted) {
-      return;
-    }
-    setState(() => _selectedIndex = 0);
-  }
-
   @override
   void initState() {
     super.initState();
@@ -34,16 +28,27 @@ class _ContentViewState extends State<ContentView> {
       signalR.configure(alertManager: alertManager);
       signalR.connect();
 
-      LocalNotificationService.notificationTapCount.addListener(_onNotificationTapped);
+      // When user taps the notification banner (app was backgrounded):
+      // → switch to Home tab and start the audio (overlay is already shown
+      //   because activeAlert is set by the SignalR handler).
+      LocalNotificationService.notificationTapCount.addListener(() {
+        if (!mounted) return;
+        setState(() => _selectedIndex = 0);
+        // Start audio now that the app is foregrounded
+        if (alertManager.activeAlert != null) {
+          AudioService.instance.playLoop();
+        }
+      });
     });
   }
 
-
   @override
   void dispose() {
-    LocalNotificationService.notificationTapCount.removeListener(_onNotificationTapped);
+    LocalNotificationService.notificationTapCount
+        .removeListener(() {});
     super.dispose();
   }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<AlertManager>(
@@ -64,36 +69,45 @@ class _ContentViewState extends State<ContentView> {
                     _PlaceholderScreen(title: 'Settings'),
                   ],
                 ),
+                // Full-screen incoming call overlay
                 if (alertManager.activeAlert != null)
-                  AlertOverlay(
-                    alert: alertManager.activeAlert!,
-                    alertManager: alertManager,
+                  Positioned.fill(
+                    child: AlertOverlay(
+                      alert: alertManager.activeAlert!,
+                      alertManager: alertManager,
+                    ),
                   ),
               ],
             ),
-            bottomNavigationBar: _BottomNav(
-              selectedIndex: _selectedIndex,
-              onChanged: (index) => setState(() => _selectedIndex = index),
-            ),
-            floatingActionButton: FloatingActionButton.extended(
-              onPressed: () {
-                final demo = IncomingAlert(
-                  type: TextAlert(
-                    'All personnel required at Station 3 immediately. Confirm your response.',
+            bottomNavigationBar: alertManager.activeAlert != null
+                ? null // hide nav while call screen is showing
+                : _BottomNav(
+                    selectedIndex: _selectedIndex,
+                    onChanged: (i) => setState(() => _selectedIndex = i),
                   ),
-                );
-                alertManager.handle(demo);
-              },
-              backgroundColor: const Color(0xFF1E5EFF),
-              icon: const Icon(Icons.notification_add_outlined),
-              label: const Text('Demo Alert'),
-            ),
+            floatingActionButton: alertManager.activeAlert != null
+                ? null
+                : FloatingActionButton.extended(
+                    onPressed: () {
+                      final demo = IncomingAlert(
+                        type: TextAlert(
+                          'All personnel required at Station 3 immediately. Confirm your response.',
+                        ),
+                      );
+                      alertManager.handle(demo);
+                    },
+                    backgroundColor: const Color(0xFF1E5EFF),
+                    icon: const Icon(Icons.notification_add_outlined),
+                    label: const Text('Demo Alert'),
+                  ),
           ),
         );
       },
     );
   }
 }
+
+// ── Screens ──────────────────────────────────────────────────────────────────
 
 class _HomeDashboardScreen extends StatelessWidget {
   const _HomeDashboardScreen();
@@ -183,7 +197,10 @@ class _AlertHistoryScreen extends StatelessWidget {
           children: [
             const Center(
               child: Text('Alert History',
-                  style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold)),
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold)),
             ),
             const SizedBox(height: 18),
             const Row(
@@ -203,7 +220,8 @@ class _AlertHistoryScreen extends StatelessWidget {
                 builder: (_, manager, __) {
                   if (manager.alerts.isEmpty) {
                     return const Center(
-                      child: Text('No alerts yet', style: TextStyle(color: Color(0xFF98A3C7))),
+                      child: Text('No alerts yet',
+                          style: TextStyle(color: Color(0xFF98A3C7))),
                     );
                   }
                   return ListView.builder(
@@ -212,7 +230,9 @@ class _AlertHistoryScreen extends StatelessWidget {
                       final alert = manager.alerts[i];
                       return _RecentTile(
                         status: i == 0 ? 'Done' : 'Sent',
-                        statusColor: i == 0 ? const Color(0xFF22C55E) : const Color(0xFFF59E0B),
+                        statusColor: i == 0
+                            ? const Color(0xFF22C55E)
+                            : const Color(0xFFF59E0B),
                         title: alert.displayTitle,
                       );
                     },
@@ -234,20 +254,22 @@ class _PlaceholderScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Text(title, style: const TextStyle(color: Colors.white70, fontSize: 28)),
+      child: Text(title,
+          style: const TextStyle(color: Colors.white70, fontSize: 28)),
     );
   }
 }
 
+// ── Shared UI components ──────────────────────────────────────────────────────
+
 class _BottomNav extends StatelessWidget {
   const _BottomNav({required this.selectedIndex, required this.onChanged});
-
   final int selectedIndex;
   final ValueChanged<int> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    final items = const [
+    const items = [
       (Icons.home_rounded, 'Home'),
       (Icons.list_alt_rounded, 'Alerts'),
       (Icons.person_outline, 'Profile'),
@@ -272,11 +294,16 @@ class _BottomNav extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(items[i].$1, color: selected ? const Color(0xFFFD5A5A) : const Color(0xFF8A93B5)),
+                  Icon(items[i].$1,
+                      color: selected
+                          ? const Color(0xFFFD5A5A)
+                          : const Color(0xFF8A93B5)),
                   const SizedBox(height: 2),
                   Text(items[i].$2,
                       style: TextStyle(
-                        color: selected ? const Color(0xFFFD5A5A) : const Color(0xFF8A93B5),
+                        color: selected
+                            ? const Color(0xFFFD5A5A)
+                            : const Color(0xFF8A93B5),
                         fontSize: 11,
                       )),
                 ],
@@ -290,8 +317,9 @@ class _BottomNav extends StatelessWidget {
 }
 
 class _GlassCard extends StatelessWidget {
-  const _GlassCard({required this.child, this.borderColor = const Color(0x334D5A84)});
-
+  const _GlassCard(
+      {required this.child,
+      this.borderColor = const Color(0x334D5A84)});
   final Widget child;
   final Color borderColor;
 
@@ -310,8 +338,8 @@ class _GlassCard extends StatelessWidget {
 }
 
 class _CountCard extends StatelessWidget {
-  const _CountCard({required this.label, required this.value, required this.color});
-
+  const _CountCard(
+      {required this.label, required this.value, required this.color});
   final String label;
   final String value;
   final Color color;
@@ -327,8 +355,13 @@ class _CountCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Text(value, style: TextStyle(color: color, fontSize: 28, fontWeight: FontWeight.bold)),
-          Text(label, style: const TextStyle(color: Color(0xFFB6C0E0))),
+          Text(value,
+              style: TextStyle(
+                  color: color,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold)),
+          Text(label,
+              style: const TextStyle(color: Color(0xFFB6C0E0))),
         ],
       ),
     );
@@ -336,8 +369,10 @@ class _CountCard extends StatelessWidget {
 }
 
 class _RecentTile extends StatelessWidget {
-  const _RecentTile({required this.status, required this.statusColor, required this.title});
-
+  const _RecentTile(
+      {required this.status,
+      required this.statusColor,
+      required this.title});
   final String status;
   final Color statusColor;
   final String title;
@@ -354,18 +389,27 @@ class _RecentTile extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const CircleAvatar(radius: 4, backgroundColor: Color(0xFFF87171)),
+          const CircleAvatar(
+              radius: 4, backgroundColor: Color(0xFFF87171)),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+            child: Text(title,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600)),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
               color: statusColor.withOpacity(0.2),
               borderRadius: BorderRadius.circular(999),
             ),
-            child: Text(status, style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 12)),
+            child: Text(status,
+                style: TextStyle(
+                    color: statusColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12)),
           ),
         ],
       ),
